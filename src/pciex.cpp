@@ -2,41 +2,338 @@
 
 namespace pci {
 
-PciDevice::PciDevice(uint16_t dom, uint8_t bus, uint8_t dev, uint8_t func,
-                     cfg_space_type type, std::unique_ptr<uint8_t[]> cfg) :
-    dom_(dom),
-    bus_(bus),
-    dev_(dev),
-    func_(func),
-    cfg_type_(type),
-    cfg_space_(std::move(cfg)) {}
+static constexpr RegMap<Type0Cfg, uint32_t, type0_compat_reg_cnt> t0_reg_map {{
+    {{Type0Cfg::vid,             2},
+     {Type0Cfg::dev_id,          2},
+     {Type0Cfg::command,         2},
+     {Type0Cfg::status,          2},
 
-uint16_t PciDevice::get_vendor_id() const noexcept {
-    auto cfg_buf = cfg_space_.get();
-    auto vid = reinterpret_cast<uint16_t *>(cfg_buf + e_type(Type0Cfg::vid));
-    return *vid;
+     {Type0Cfg::revision,        1},
+     {Type0Cfg::class_code,      3},
+
+     {Type0Cfg::cache_line_size, 1},
+     {Type0Cfg::latency_timer,   1},
+     {Type0Cfg::header_type,     1},
+     {Type0Cfg::bist,            1},
+
+     {Type0Cfg::bar0,            4},
+     {Type0Cfg::bar1,            4},
+     {Type0Cfg::bar2,            4},
+     {Type0Cfg::bar3,            4},
+     {Type0Cfg::bar4,            4},
+     {Type0Cfg::bar5,            4},
+
+     {Type0Cfg::cardbus_cis_ptr, 4},
+     {Type0Cfg::subsys_vid,      2},
+     {Type0Cfg::subsys_dev_id,   2},
+     {Type0Cfg::exp_rom_bar,     4},
+
+     {Type0Cfg::cap_ptr,         1},
+
+     {Type0Cfg::itr_line,        1},
+     {Type0Cfg::itr_pin,         1},
+
+     {Type0Cfg::min_gnt,         1},
+     {Type0Cfg::max_lat,         1}}
+}};
+
+static constexpr RegMap<Type1Cfg, uint32_t, type1_compat_reg_cnt> t1_reg_map {{
+    {{Type1Cfg::vid,              2},
+     {Type1Cfg::dev_id,           2},
+     {Type1Cfg::command,          2},
+     {Type1Cfg::status,           2},
+
+     {Type1Cfg::revision,         1},
+     {Type1Cfg::class_code,       3},
+
+     {Type1Cfg::cache_line_size,  1},
+     {Type1Cfg::prim_lat_timer,   1},
+     {Type1Cfg::header_type,      1},
+     {Type1Cfg::bist,             1},
+
+     {Type1Cfg::bar0,             4},
+     {Type1Cfg::bar1,             4},
+
+     {Type1Cfg::prim_bus_num,     1},
+     {Type1Cfg::sec_bus_num,      1},
+     {Type1Cfg::sub_bus_num,      1},
+     {Type1Cfg::sec_lat_timer,    1},
+
+     {Type1Cfg::io_base,          1},
+     {Type1Cfg::io_limit,         1},
+     {Type1Cfg::sec_status,       2},
+
+     {Type1Cfg::mem_base,         2},
+     {Type1Cfg::mem_limit,        2},
+
+     {Type1Cfg::pref_mem_base,    2},
+     {Type1Cfg::pref_mem_limit,   2},
+
+     {Type1Cfg::pref_base_upper,  4},
+     {Type1Cfg::pref_limit_upper, 4},
+
+     {Type1Cfg::io_base_upper,    2},
+     {Type1Cfg::io_limit_upper,   2},
+
+     {Type1Cfg::cap_ptr,          1},
+
+     {Type1Cfg::exp_rom_bar,      4},
+
+     {Type1Cfg::itr_line,         1},
+     {Type1Cfg::itr_pin,          1},
+     {Type1Cfg::bridge_ctl,       2}}
+}};
+
+PciDevBase::PciDevBase(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_type,
+                       std::unique_ptr<uint8_t []> cfg_buf) :
+    dom_(d_bdf >> 24 & 0xffff),
+    bus_(d_bdf >> 16 & 0xff),
+    dev_(d_bdf >> 8 & 0xff),
+    func_(d_bdf & 0xff),
+    is_pcie_(false),
+    cfg_type_(cfg_len),
+    type_(dev_type),
+    cfg_space_(std::move(cfg_buf))
+    {}
+
+
+uint32_t PciDevBase::get_vendor_id() const noexcept
+{
+    return get_reg_compat(Type0Cfg::vid, t0_reg_map);
 }
 
-uint16_t PciDevice::get_dev_id() const noexcept {
-    auto cfg_buf = cfg_space_.get();
-    auto dev_id = reinterpret_cast<uint16_t *>(cfg_buf + e_type(Type0Cfg::dev_id));
-    return *dev_id;
+uint32_t PciDevBase::get_device_id() const noexcept
+{
+    return get_reg_compat(Type0Cfg::dev_id, t0_reg_map);
 }
 
-uint32_t PciDevice::get_class_code() const noexcept {
-    auto cfg_buf = cfg_space_.get();
-    auto dword2 = reinterpret_cast<uint32_t *>(cfg_buf + e_type(Type0Cfg::revision));
-    auto class_code = *dword2;
-    return class_code >> 8;
+uint32_t PciDevBase::get_command() const noexcept
+{
+    return get_reg_compat(Type0Cfg::command, t0_reg_map);
 }
 
-void PciDevice::print_data() const noexcept {
+uint32_t PciDevBase::get_status() const noexcept
+{
+    return get_reg_compat(Type0Cfg::status, t0_reg_map);
+}
+
+uint32_t PciDevBase::get_rev_id() const noexcept
+{
+    return get_reg_compat(Type0Cfg::revision, t0_reg_map);
+}
+
+uint32_t PciDevBase::get_class_code() const noexcept
+{
+    return get_reg_compat(Type0Cfg::class_code, t0_reg_map);
+}
+
+uint32_t PciDevBase::get_cache_line_size() const noexcept
+{
+    return get_reg_compat(Type0Cfg::cache_line_size, t0_reg_map);
+}
+
+uint32_t PciDevBase::get_lat_timer() const noexcept
+{
+    return get_reg_compat(Type0Cfg::latency_timer, t0_reg_map);
+}
+
+uint32_t PciDevBase::get_header_type() const noexcept
+{
+    return get_reg_compat(Type0Cfg::header_type, t0_reg_map);
+}
+
+uint32_t PciDevBase::get_bist() const noexcept
+{
+    return get_reg_compat(Type0Cfg::bist, t0_reg_map);
+}
+
+uint32_t PciDevBase::get_cap_ptr() const noexcept
+{
+    return get_reg_compat(Type0Cfg::cap_ptr, t0_reg_map);
+}
+
+uint32_t PciDevBase::get_itr_line() const noexcept
+{
+    return get_reg_compat(Type0Cfg::itr_line, t0_reg_map);
+}
+
+uint32_t PciDevBase::get_itr_pin() const noexcept
+{
+    return get_reg_compat(Type0Cfg::itr_pin, t0_reg_map);
+}
+
+//
+// Type0 device registers
+//
+
+uint32_t PciType0Dev::get_bar0() const noexcept
+{
+    return get_reg_compat(Type0Cfg::bar0, t0_reg_map);
+}
+
+uint32_t PciType0Dev::get_bar1() const noexcept
+{
+    return get_reg_compat(Type0Cfg::bar1, t0_reg_map);
+}
+
+uint32_t PciType0Dev::get_bar2() const noexcept
+{
+    return get_reg_compat(Type0Cfg::bar2, t0_reg_map);
+}
+
+uint32_t PciType0Dev::get_bar3() const noexcept
+{
+    return get_reg_compat(Type0Cfg::bar3, t0_reg_map);
+}
+
+uint32_t PciType0Dev::get_bar4() const noexcept
+{
+    return get_reg_compat(Type0Cfg::bar4, t0_reg_map);
+}
+
+uint32_t PciType0Dev::get_bar5() const noexcept
+{
+    return get_reg_compat(Type0Cfg::bar5, t0_reg_map);
+}
+
+uint32_t PciType0Dev::get_cardbus_cis() const noexcept
+{
+    return get_reg_compat(Type0Cfg::cardbus_cis_ptr, t0_reg_map);
+}
+
+uint32_t PciType0Dev::get_subsys_vid() const noexcept
+{
+    return get_reg_compat(Type0Cfg::subsys_vid, t0_reg_map);
+}
+
+uint32_t PciType0Dev::get_subsys_dev_id() const noexcept
+{
+    return get_reg_compat(Type0Cfg::subsys_dev_id, t0_reg_map);
+}
+
+uint32_t PciType0Dev::get_exp_rom_bar() const noexcept
+{
+    return get_reg_compat(Type0Cfg::exp_rom_bar, t0_reg_map);
+}
+
+uint32_t PciType0Dev::get_min_gnt() const noexcept
+{
+    return get_reg_compat(Type0Cfg::min_gnt, t0_reg_map);
+}
+
+uint32_t PciType0Dev::get_max_lat() const noexcept
+{
+    return get_reg_compat(Type0Cfg::max_lat, t0_reg_map);
+}
+
+void PciType0Dev::print_data() const noexcept {
     auto vid    = get_vendor_id();
-    auto dev_id = get_dev_id();
-    logger.info("[{:04}:{:02}:{:02x}.{}] -> cfg_size {:4} vendor {:2x} | dev {:2x}",
-               dom_, bus_, dev_, func_,
-               cfg_type_ == cfg_space_type::LEGACY ? pci_cfg_legacy_len : pci_cfg_ecs_len,
-               vid, dev_id);
+    auto dev_id = get_device_id();
+    logger.info("[{:04}:{:02}:{:02x}.{}] -> TYPE 0: cfg_size {:4} vendor {:2x} | dev {:2x}",
+               dom_, bus_, dev_, func_, e_to_type(cfg_type_), vid, dev_id);
 }
+
+//
+// Type1 device registers
+//
+
+uint32_t PciType1Dev::get_bar0() const noexcept
+{
+    return get_reg_compat(Type1Cfg::bar0, t1_reg_map);
+}
+
+uint32_t PciType1Dev::get_bar1() const noexcept
+{
+    return get_reg_compat(Type1Cfg::bar1, t1_reg_map);
+}
+uint32_t PciType1Dev::get_prim_bus_num() const noexcept
+{
+    return get_reg_compat(Type1Cfg::prim_bus_num, t1_reg_map);
+}
+uint32_t PciType1Dev::get_sec_bus_num() const noexcept
+{
+    return get_reg_compat(Type1Cfg::sec_bus_num, t1_reg_map);
+}
+uint32_t PciType1Dev::get_sub_bus_num() const noexcept
+{
+    return get_reg_compat(Type1Cfg::sub_bus_num, t1_reg_map);
+}
+uint32_t PciType1Dev::get_sec_lat_timer() const noexcept
+{
+    return get_reg_compat(Type1Cfg::sec_lat_timer, t1_reg_map);
+}
+
+uint32_t PciType1Dev::get_io_base() const noexcept
+{
+    return get_reg_compat(Type1Cfg::io_base, t1_reg_map);
+}
+
+uint32_t PciType1Dev::get_io_limit() const noexcept
+{
+    return get_reg_compat(Type1Cfg::io_limit, t1_reg_map);
+}
+
+uint32_t PciType1Dev::get_sec_status() const noexcept
+{
+    return get_reg_compat(Type1Cfg::sec_status, t1_reg_map);
+}
+
+uint32_t PciType1Dev::get_mem_base() const noexcept
+{
+    return get_reg_compat(Type1Cfg::mem_base, t1_reg_map);
+}
+
+uint32_t PciType1Dev::get_mem_limit() const noexcept
+{
+    return get_reg_compat(Type1Cfg::mem_limit, t1_reg_map);
+}
+
+uint32_t PciType1Dev::get_pref_mem_base() const noexcept
+{
+    return get_reg_compat(Type1Cfg::pref_mem_base, t1_reg_map);
+}
+
+uint32_t PciType1Dev::get_pref_mem_limit() const noexcept
+{
+    return get_reg_compat(Type1Cfg::pref_mem_limit, t1_reg_map);
+}
+
+uint32_t PciType1Dev::get_pref_base_upper() const noexcept
+{
+    return get_reg_compat(Type1Cfg::pref_base_upper, t1_reg_map);
+}
+
+uint32_t PciType1Dev::get_pref_limit_upper() const noexcept
+{
+    return get_reg_compat(Type1Cfg::pref_limit_upper, t1_reg_map);
+}
+
+uint32_t PciType1Dev::get_io_base_upper() const noexcept
+{
+    return get_reg_compat(Type1Cfg::io_base_upper, t1_reg_map);
+}
+
+uint32_t PciType1Dev::get_io_limit_upper() const noexcept
+{
+    return get_reg_compat(Type1Cfg::io_limit_upper, t1_reg_map);
+}
+
+uint32_t PciType1Dev::get_exp_rom_bar() const noexcept
+{
+    return get_reg_compat(Type1Cfg::exp_rom_bar, t1_reg_map);
+}
+
+uint32_t PciType1Dev::get_bridge_ctl() const noexcept
+{
+    return get_reg_compat(Type1Cfg::bridge_ctl, t1_reg_map);
+}
+
+void PciType1Dev::print_data() const noexcept {
+    auto vid    = get_vendor_id();
+    auto dev_id = get_device_id();
+    logger.info("[{:04}:{:02}:{:02x}.{}] -> TYPE 1: cfg_size {:4} vendor {:2x} | dev {:2x}",
+               dom_, bus_, dev_, func_, e_to_type(cfg_type_), vid, dev_id);
+}
+
 
 } // namespace pci

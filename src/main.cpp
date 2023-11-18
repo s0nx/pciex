@@ -34,18 +34,16 @@ int main()
 
     int i = 0;
     for (const auto &dev : topology.devs_) {
-        auto vid    = dev.get_vendor_id();
-        auto dev_id = dev.get_dev_id();
+        auto vid    = dev->get_vendor_id();
+        auto dev_id = dev->get_device_id();
         auto vname = iparser.vendor_name_lookup(vid);
         auto dev_name = iparser.device_name_lookup(vid, dev_id);
         logger.raw("[ #{} ]", i++);
         logger.raw("[{:04}:{:02}:{:02x}.{}] -> cfg_size {:4} vendor {:2x} [{}] | dev {:2x} [{}]",
-                   dev.dom_, dev.bus_, dev.dev_, dev.func_,
-                   dev.cfg_type_ == pci::cfg_space_type::LEGACY ?
-                                   pci::pci_cfg_legacy_len : pci::pci_cfg_ecs_len,
+                   dev->dom_, dev->bus_, dev->dev_, dev->func_, e_to_type(dev->cfg_type_),
                    vid, vname, dev_id, dev_name);
 
-        auto cc = dev.get_class_code();
+        auto cc = dev->get_class_code();
         logger.raw("CC: |{:04x}|", cc);
 
         auto [class_name, subclass_name, prog_iface] = iparser.class_info_lookup(cc);

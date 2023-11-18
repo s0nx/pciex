@@ -14,7 +14,6 @@
 #include <fmt/printf.h>
 
 #include "log.h"
-#include "util.h"
 #include "pci_regs.h"
 
 extern Logger logger;
@@ -78,43 +77,118 @@ struct CfgEx : public CommonEx
     using CommonEx::CommonEx;
 };
 
-enum cfg_space_type
+enum class cfg_space_type
 {
-    LEGACY,
-    ECS
+    LEGACY = 256,
+    ECS    = 4096
 };
-
-constexpr uint32_t pci_cfg_legacy_len = 256;
-constexpr uint32_t pci_cfg_ecs_len    = 4096;
 
 constexpr char pci_dev_path[] { "/sys/bus/pci/devices" };
 
-// Type 0 / Type 1 device
-struct PciDevice
+enum class pci_dev_type
 {
-    uint16_t dom_;
-    uint8_t  bus_;
-    uint8_t  dev_;
-    uint8_t  func_;
-    // Extended Configuration Space
+    TYPE0,
+    TYPE1
+};
+
+struct PciDevBase
+{
+    uint16_t        dom_;
+    uint8_t         bus_;
+    uint8_t         dev_;
+    uint8_t         func_;
+
+    bool            is_pcie_;
     cfg_space_type  cfg_type_;
+    pci_dev_type    type_;
 
     std::unique_ptr<uint8_t[]> cfg_space_;
 
-    PciDevice() = delete;
-    PciDevice(uint16_t dom, uint8_t bus, uint8_t dev, uint8_t func,
-               cfg_space_type type, std::unique_ptr<uint8_t[]> cfg);
+    PciDevBase() = delete;
+    PciDevBase(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_type,
+               std::unique_ptr<uint8_t []> cfg_buf);
 
-    uint16_t get_vendor_id() const noexcept;
-    uint16_t get_dev_id() const noexcept;
+    template <typename E>
+    constexpr uint32_t get_reg_compat(E e, auto &map) const noexcept
+    {
+        auto dword_num = e_to_type(e) / 4;
+        auto dword_off = e_to_type(e) % 4;
+        auto reg_len = map.at(e);
+
+        auto dword = *reinterpret_cast<uint32_t *>(cfg_space_.get() + dword_num * 4);
+        dword >>= dword_off * 8;
+        return dword & ((1 << reg_len * 8) - 1);
+    }
+
+    // Common registers for both Type 0 / Type 1 devices
+    uint32_t get_vendor_id() const noexcept;
+    uint32_t get_device_id() const noexcept;
+    uint32_t get_command() const noexcept;
+    uint32_t get_status() const noexcept;
+    uint32_t get_rev_id() const noexcept;
     uint32_t get_class_code() const noexcept;
+    uint32_t get_cache_line_size() const noexcept;
+    uint32_t get_lat_timer() const noexcept;
+    uint32_t get_header_type() const noexcept;
+    uint32_t get_bist() const noexcept;
+    uint32_t get_cap_ptr() const noexcept;
+    uint32_t get_itr_line() const noexcept;
+    uint32_t get_itr_pin() const noexcept;
+
+    virtual void print_data() const noexcept = 0;
+};
+
+struct PciType0Dev : public PciDevBase
+{
+    using PciDevBase::PciDevBase;
+
+    uint32_t get_bar0() const noexcept;
+    uint32_t get_bar1() const noexcept;
+    uint32_t get_bar2() const noexcept;
+    uint32_t get_bar3() const noexcept;
+    uint32_t get_bar4() const noexcept;
+    uint32_t get_bar5() const noexcept;
+    uint32_t get_cardbus_cis() const noexcept;
+    uint32_t get_subsys_vid() const noexcept;
+    uint32_t get_subsys_dev_id() const noexcept;
+    uint32_t get_exp_rom_bar() const noexcept;
+    uint32_t get_min_gnt() const noexcept;
+    uint32_t get_max_lat() const noexcept;
+
+    void print_data() const noexcept;
+};
+
+struct PciType1Dev : public PciDevBase
+{
+    using PciDevBase::PciDevBase;
+
+    uint32_t get_bar0() const noexcept;
+    uint32_t get_bar1() const noexcept;
+    uint32_t get_prim_bus_num() const noexcept;
+    uint32_t get_sec_bus_num() const noexcept;
+    uint32_t get_sub_bus_num() const noexcept;
+    uint32_t get_sec_lat_timer() const noexcept;
+    uint32_t get_io_base() const noexcept;
+    uint32_t get_io_limit() const noexcept;
+    uint32_t get_sec_status() const noexcept;
+    uint32_t get_mem_base() const noexcept;
+    uint32_t get_mem_limit() const noexcept;
+    uint32_t get_pref_mem_base() const noexcept;
+    uint32_t get_pref_mem_limit() const noexcept;
+    uint32_t get_pref_base_upper() const noexcept;
+    uint32_t get_pref_limit_upper() const noexcept;
+    uint32_t get_io_base_upper() const noexcept;
+    uint32_t get_io_limit_upper() const noexcept;
+    uint32_t get_exp_rom_bar() const noexcept;
+    uint32_t get_bridge_ctl() const noexcept;
+
     void print_data() const noexcept;
 };
 
 struct pci_bus
 {
     uint32_t bus_nr;
-    std::vector<std::unique_ptr<PciDevice>> devices;
+    std::vector<std::unique_ptr<PciDevBase>> devices;
 };
 
 struct pci_domain
@@ -123,9 +197,24 @@ struct pci_domain
     std::vector<pci_bus> buses;
 };
 
+class PciObjCreator
+{
+public:
+    std::unique_ptr<PciDevBase>
+    create(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_type,
+           std::unique_ptr<uint8_t []> cfg_buf)
+    {
+        if (dev_type == pci_dev_type::TYPE0)
+            return std::make_unique<PciType0Dev>(d_bdf, cfg_len, dev_type, std::move(cfg_buf));
+        else
+            return std::make_unique<PciType1Dev>(d_bdf, cfg_len, dev_type, std::move(cfg_buf));
+    }
+};
+
 struct PCITopologyCtx
 {
-    std::vector<PciDevice> devs_;
+    PciObjCreator dev_creator_;
+    std::vector<std::unique_ptr<PciDevBase>> devs_;
 
     void populate();
     void dump_data() const noexcept;

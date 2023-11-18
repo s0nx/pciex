@@ -1,3 +1,7 @@
+#pragma once
+
+#include "util.h"
+
 // Type 0 device configuration header register offsets
 enum class Type0Cfg
 {
@@ -37,6 +41,8 @@ enum class Type0Cfg
     min_gnt         = 0x3e, // Min_Gnt (not used by PCIe)
     max_lat         = 0x3f  // Max_Lat (not used by PCIe)
 };
+
+constexpr uint32_t type0_compat_reg_cnt = 25;
 
 constexpr auto Type0RegName(const Type0Cfg reg) noexcept
 {
@@ -134,7 +140,7 @@ enum class Type1Cfg
     pref_limit_upper = 0x2c, // Prefetchable Memory Limit (upper 32 bits) - 4 bytes
 
     io_base_upper    = 0x30, // I/O Base (upper 16 bits) - 2 bytes
-    io_lim_upper     = 0x32, // I/O Limit (upper 16 bits) - 2 bytes
+    io_limit_upper   = 0x32, // I/O Limit (upper 16 bits) - 2 bytes
 
     cap_ptr          = 0x34, // Capabilities Pointer - 1 byte
     // 0x35 - 0x37 - reserved
@@ -145,6 +151,8 @@ enum class Type1Cfg
 
     bridge_ctl       = 0x3e // Bridge Control - 2 bytes
 };
+
+constexpr uint32_t type1_compat_reg_cnt = 32;
 
 constexpr auto Type1RegName(const Type1Cfg reg) noexcept
 {
@@ -201,7 +209,7 @@ constexpr auto Type1RegName(const Type1Cfg reg) noexcept
         return "Prefetchable Limit Upper 32 Bits";
     case Type1Cfg::io_base_upper:
         return "I/O Base Upper 16 Bits";
-    case Type1Cfg::io_lim_upper:
+    case Type1Cfg::io_limit_upper:
         return "I/O Limit Upper 16 Bits";
     case Type1Cfg::cap_ptr:
         return "Capabilities Pointer";

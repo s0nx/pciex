@@ -2,13 +2,31 @@
 
 #include <type_traits>
 #include <string>
+#include <algorithm>
+#include <cassert>
 
 // Explicit scoped enums to underlying type conversion
 template <typename E>
-constexpr auto e_type(E e) noexcept
+constexpr auto e_to_type(E e) noexcept
 {
     return static_cast<std::underlying_type_t<E>>(e);
 }
+
+// constexpr register <-> len map
+template <typename Key, typename Val, std::size_t Size>
+struct RegMap
+{
+    std::array<std::pair<Key, Val>, Size> arr_;
+
+    [[nodiscard]] constexpr Val at(const Key &key) const
+    {
+        const auto it = std::find_if(std::begin(arr_), std::end(arr_),
+                                     [&key](const auto &v) { return v.first == key; });
+        // Since this map is supposed to be used with enums, value should definitely be found
+        assert(it != std::end(arr_));
+        return it->second;
+    }
+};
 
 constexpr std::string_view ExNames [] = {
     "SYS",

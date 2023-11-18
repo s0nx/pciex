@@ -96,7 +96,7 @@ bool sys::is_kptr_set()
         ist >> val;
     }
 
-    if (val == e_type(kptr_mode::REAL_ADDR))
+    if (val == e_to_type(kptr_mode::REAL_ADDR))
         return true;
 
     logger.warn("kptr_restrict -> {}: VA mapping info is unavalible", val);
