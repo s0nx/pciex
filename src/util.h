@@ -12,7 +12,7 @@ constexpr auto e_to_type(E e) noexcept
     return static_cast<std::underlying_type_t<E>>(e);
 }
 
-// constexpr register <-> len map
+// Constexpr map
 template <typename Key, typename Val, std::size_t Size>
 struct RegMap
 {

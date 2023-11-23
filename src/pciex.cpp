@@ -96,6 +96,59 @@ PciDevBase::PciDevBase(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_
     cfg_space_(std::move(cfg_buf))
     {}
 
+void PciDevBase::parse_capabilities()
+{
+    auto reg_status = reinterpret_cast<const RegStatus *>
+                      (cfg_space_.get() + e_to_type(Type0Cfg::status));
+    if (!reg_status->cap_list)
+        return;
+
+    auto reg_cap_ptr = reinterpret_cast<const RegCapPtr *>
+                      (cfg_space_.get() + e_to_type(Type0Cfg::cap_ptr));
+    auto next_cap_off = reg_cap_ptr->ptr & 0xfc;
+
+    while (next_cap_off != 0) {
+            auto compat_cap = reinterpret_cast<const CompatCapHdr *>
+                              (cfg_space_.get() + next_cap_off);
+            auto cap_type = CompatCapID{compat_cap->cap_id};
+            if (cap_type == CompatCapID::pci_express)
+                is_pcie_ = true;
+
+            caps_.emplace_back(CapType::compat, compat_cap->cap_id, 0, next_cap_off);
+            next_cap_off = compat_cap->next_cap;
+    }
+
+    if (is_pcie_) {
+        next_cap_off = ext_cap_cfg_off;
+        while (next_cap_off != 0) {
+            auto ext_cap = reinterpret_cast<const ExtCapHdr *>
+                           (cfg_space_.get() + next_cap_off);
+            auto cap_type = ExtCapID{ext_cap->cap_id};
+            if (cap_type != ExtCapID::null_cap)
+                caps_.emplace_back(CapType::extended, ext_cap->cap_id, ext_cap->cap_ver,
+                                   next_cap_off);
+            next_cap_off = ext_cap->next_cap;
+        }
+    }
+}
+
+void PciDevBase::dump_capabilities() noexcept
+{
+    logger.info("[{:02x}:{:02x}.{:x}]: {} capabilities >>>", bus_, dev_, func_, caps_.size());
+    for (size_t i = 0; auto &cap : caps_) {
+        auto cap_type = std::get<0>(cap);
+
+        if (cap_type == CapType::compat) {
+            auto compat_cap_type = CompatCapID{std::get<1>(cap)};
+            logger.raw("[#{:2} {:#03x}] -> '{}'", i++, std::get<3>(cap),
+                       CompatCapName(compat_cap_type));
+        } else {
+            auto ext_cap_type = ExtCapID{std::get<1>(cap)};
+            logger.raw("[#{:2} {:#03x}] -> (EXT, ver {}) '{}'", i++, std::get<3>(cap),
+                       std::get<2>(cap), ExtCapName(ext_cap_type));
+        }
+    }
+}
 
 uint32_t PciDevBase::get_vendor_id() const noexcept
 {
@@ -229,7 +282,7 @@ uint32_t PciType0Dev::get_max_lat() const noexcept
 void PciType0Dev::print_data() const noexcept {
     auto vid    = get_vendor_id();
     auto dev_id = get_device_id();
-    logger.info("[{:04}:{:02}:{:02x}.{}] -> TYPE 0: cfg_size {:4} vendor {:2x} | dev {:2x}",
+    logger.info("[{:04}:{:02x}:{:02x}.{:x}] -> TYPE 0: cfg_size {:4} vendor {:2x} | dev {:2x}",
                dom_, bus_, dev_, func_, e_to_type(cfg_type_), vid, dev_id);
 }
 
@@ -329,11 +382,10 @@ uint32_t PciType1Dev::get_bridge_ctl() const noexcept
 }
 
 void PciType1Dev::print_data() const noexcept {
-    auto vid    = get_vendor_id();
     auto dev_id = get_device_id();
-    logger.info("[{:04}:{:02}:{:02x}.{}] -> TYPE 1: cfg_size {:4} vendor {:2x} | dev {:2x}",
+    auto vid = *reinterpret_cast<uint16_t *>(cfg_space_.get() + e_to_type(Type1Cfg::vid));
+    logger.info("[{:04}:{:02x}:{:02x}.{:x}] -> TYPE 1: cfg_size {:4} vendor {:2x} | dev {:2x}",
                dom_, bus_, dev_, func_, e_to_type(cfg_type_), vid, dev_id);
 }
-
 
 } // namespace pci

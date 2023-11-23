@@ -1,6 +1,7 @@
 #pragma once
 
 #include "util.h"
+#include <cstdint>
 
 // Type 0 device configuration header register offsets
 enum class Type0Cfg
@@ -225,3 +226,302 @@ constexpr auto Type1RegName(const Type1Cfg reg) noexcept
         return "";
     }
 }
+
+struct RegVendorID
+{
+    uint16_t vid;
+} __attribute__((packed));
+static_assert(sizeof(RegVendorID) == 2);
+
+struct RegDeviceID
+{
+    uint16_t dev_id;
+} __attribute__((packed));
+static_assert(sizeof(RegDeviceID) == 2);
+
+struct RegCommand
+{
+    uint16_t    io_space_ena : 1;
+    uint16_t   mem_space_ena : 1;
+    uint16_t  bus_master_ena : 1;
+    uint16_t           rsvd0 : 3;
+    uint16_t parity_err_resp : 1;
+    uint16_t           rsvd1 : 1;
+    uint16_t        serr_ena : 1;
+    uint16_t           rsvd2 : 1;
+    uint16_t     itr_disable : 1;
+    uint16_t           rsvd3 : 5;
+} __attribute__((packed));
+static_assert(sizeof(RegCommand) == 2);
+
+struct RegStatus
+{
+    uint16_t          imm_readiness : 1;
+    uint16_t                  rsvd0 : 2;
+    uint16_t             itr_status : 1;
+    uint16_t               cap_list : 1;
+    uint16_t                  rsvd1 : 3;
+    uint16_t master_data_parity_err : 1;
+    uint16_t                  rsvd2 : 2;
+    uint16_t        signl_tgt_abort : 1;
+    uint16_t     received_tgt_abort : 1;
+    uint16_t  recevied_master_abort : 1;
+    uint16_t          signl_sys_err : 1;
+    uint16_t    detected_parity_err : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegStatus) == 2);
+
+struct RegCapPtr
+{
+    uint8_t ptr;
+} __attribute__((packed));
+static_assert(sizeof(RegCapPtr) == 1);
+
+enum class CapType
+{
+    compat,
+    extended
+};
+
+constexpr uint32_t ext_cap_cfg_off = 0x100;
+
+enum class CompatCapID
+{
+    null_cap                   = 0x0,
+    pci_pm_iface               = 0x1,
+    agp                        = 0x2,
+    vpd                        = 0x3,
+    slot_ident                 = 0x4,
+    msi                        = 0x5,
+    compat_pci_hot_swap        = 0x6,
+    pci_x                      = 0x7,
+    hyper_transport            = 0x8,
+    vendor_spec                = 0x9,
+    dbg_port                   = 0xa,
+    compat_pci_central_res_ctl = 0xb,
+    pci_hot_plug               = 0xc,
+    pci_brd_sub_vid            = 0xd,
+    agp_x8                     = 0xe,
+    secure_dev                 = 0xf,
+    pci_express                = 0x10,
+    msix                       = 0x11,
+    sata_data_idx_conf         = 0x12,
+    af                         = 0x13,
+    enhanced_alloc             = 0x14,
+    flat_portal_brd            = 0x15
+};
+
+constexpr auto CompatCapName(const CompatCapID cap_id)
+{
+    switch(cap_id) {
+    case CompatCapID::null_cap:
+        return "<null>";
+    case CompatCapID::pci_pm_iface:
+        return "PCI Power Management Interface";
+    case CompatCapID::agp:
+        return "AGP";
+    case CompatCapID::vpd:
+        return "Vital Product Data";
+    case CompatCapID::slot_ident:
+        return "Slot Identification";
+    case CompatCapID::msi:
+        return "MSI";
+    case CompatCapID::compat_pci_hot_swap:
+        return "CompatPCI Hot Swap";
+    case CompatCapID::pci_x:
+        return "PCI-X";
+    case CompatCapID::hyper_transport:
+        return "HyperTransport";
+    case CompatCapID::vendor_spec:
+        return "Vendor Specific";
+    case CompatCapID::dbg_port:
+        return "Debug port";
+    case CompatCapID::compat_pci_central_res_ctl:
+        return "CompatPCI central resource control";
+    case CompatCapID::pci_hot_plug:
+        return "PCI Hot-Plug";
+    case CompatCapID::pci_brd_sub_vid:
+        return "PCI Bridge Subsystem Vendor ID";
+    case CompatCapID::agp_x8:
+        return "AGP 8x";
+    case CompatCapID::secure_dev:
+        return "Secure Device";
+    case CompatCapID::pci_express:
+        return "PCI Express";
+    case CompatCapID::msix:
+        return "MSI-X";
+    case CompatCapID::sata_data_idx_conf:
+        return "Serial ATA Data/Index conf";
+    case CompatCapID::af:
+        return "Advanced Features";
+    case CompatCapID::enhanced_alloc:
+        return "Enhanced Allocation";
+    case CompatCapID::flat_portal_brd:
+        return "Flattening Portal Bridge";
+    default:
+        return "";
+    }
+}
+
+enum class ExtCapID
+{
+    null_cap                 = 0x0,
+    aer                      = 0x1,
+    vc_no_mfvc               = 0x2,
+    dev_serial               = 0x3,
+    power_budget             = 0x4,
+    rc_link_decl             = 0x5,
+    rc_internal_link_ctl     = 0x6,
+    rc_ev_collector_ep_assoc = 0x7,
+    mfvc                     = 0x8,
+    vc_mfvc_pres             = 0x9,
+    rcrb                     = 0xa,
+    vendor_spec_ext_cap      = 0xb,
+    cac                      = 0xc,
+    acs                      = 0xd,
+    ari                      = 0xe,
+    ats                      = 0xf,
+    sriov                    = 0x10,
+    mriov                    = 0x11,
+    mcast                    = 0x12,
+    page_req_iface           = 0x13,
+    amd_rsvd                 = 0x14,
+    res_bar                  = 0x15,
+    dpa                      = 0x16,
+    tph_req                  = 0x17,
+    ltr                      = 0x18,
+    sec_pcie                 = 0x19,
+    pmux                     = 0x1a,
+    pasid                    = 0x1b,
+    lnr                      = 0x1c,
+    dpc                      = 0x1d,
+    l1_pm_substates          = 0x1e,
+    ptm                      = 0x1f,
+    pcie_over_mphy           = 0x20,
+    frs_q                    = 0x21,
+    readiness_tr             = 0x22,
+    dvsec                    = 0x23,
+    vf_res_bar               = 0x24,
+    data_link_feat           = 0x25,
+    phys_16gt                = 0x26,
+    lane_marg_rx             = 0x27,
+    hierarchy_id             = 0x28,
+    npem                     = 0x29,
+    phys_32gt                = 0x2a,
+    alter_proto              = 0x2b,
+    sfi                      = 0x2c
+};
+
+constexpr auto ExtCapName(const ExtCapID cap_id)
+{
+    switch(cap_id) {
+    case ExtCapID::null_cap:
+        return "<null>";
+    case ExtCapID::aer:
+        return "Advanced Error Reporting (AER)";
+    case ExtCapID::vc_no_mfvc:
+        return "Virtual Channel (MFVC-)";
+    case ExtCapID::dev_serial:
+        return "Device Serial Number";
+    case ExtCapID::power_budget:
+        return "Power Budgeting";
+    case ExtCapID::rc_link_decl:
+        return "RC Link Declaration";
+    case ExtCapID::rc_internal_link_ctl:
+        return "RC Internal Link Control";
+    case ExtCapID::rc_ev_collector_ep_assoc:
+        return "RC Event Collector EP Association";
+    case ExtCapID::mfvc:
+        return "Multi-Function VC";
+    case ExtCapID::vc_mfvc_pres:
+        return "Virtual Channel (MFVC+)";
+    case ExtCapID::rcrb:
+        return "RC Register Block";
+    case ExtCapID::vendor_spec_ext_cap:
+        return "Vendor-Specific Ext Cap";
+    case ExtCapID::cac:
+        return "Configuration Access Correlation";
+    case ExtCapID::acs:
+        return "ACS";
+    case ExtCapID::ari:
+        return "ARI";
+    case ExtCapID::ats:
+        return "ATS";
+    case ExtCapID::sriov:
+        return "SR-IOV";
+    case ExtCapID::mriov:
+        return "MR-IOV";
+    case ExtCapID::mcast:
+        return "Multicast";
+    case ExtCapID::page_req_iface:
+        return "Page Request Interface";
+    case ExtCapID::amd_rsvd:
+        return "Reserved for AMD";
+    case ExtCapID::res_bar:
+        return "Resizable BAR";
+    case ExtCapID::dpa:
+        return "DPA";
+    case ExtCapID::tph_req:
+        return "TPH Requester";
+    case ExtCapID::ltr:
+        return "LTR";
+    case ExtCapID::sec_pcie:
+        return "Secondary PCIe";
+    case ExtCapID::pmux:
+        return "PMUX";
+    case ExtCapID::pasid:
+        return "PASID";
+    case ExtCapID::lnr:
+        return "LNR";
+    case ExtCapID::dpc:
+        return "DPC";
+    case ExtCapID::l1_pm_substates:
+        return "L1 PM Substates";
+    case ExtCapID::ptm:
+        return "PTM";
+    case ExtCapID::pcie_over_mphy:
+        return "PCIe over M-PHY";
+    case ExtCapID::frs_q:
+        return "FRS Queueing";
+    case ExtCapID::readiness_tr:
+        return "Readiness Time Reporting";
+    case ExtCapID::dvsec:
+        return "DVSEC";
+    case ExtCapID::vf_res_bar:
+        return "VF Resizable BAR";
+    case ExtCapID::data_link_feat:
+        return "Data Link Feature";
+    case ExtCapID::phys_16gt:
+        return "Phys Layer 16 GT/s";
+    case ExtCapID::lane_marg_rx:
+        return "Lane Margining at Receiver";
+    case ExtCapID::hierarchy_id:
+        return "Hierarchy ID";
+    case ExtCapID::npem:
+        return "NPEM";
+    case ExtCapID::phys_32gt:
+        return "Phys Layer 32 GT/s";
+    case ExtCapID::alter_proto:
+        return "Alternate Protocol";
+    case ExtCapID::sfi:
+        return "SFI";
+    default:
+        return "";
+    }
+}
+
+struct CompatCapHdr
+{
+    uint8_t cap_id;
+    uint8_t next_cap;
+} __attribute__((packed));
+static_assert(sizeof(CompatCapHdr) == 2);
+
+struct ExtCapHdr
+{
+    uint16_t  cap_id;
+    uint16_t  cap_ver : 4;
+    uint16_t next_cap : 12;
+} __attribute__((packed));
+static_assert(sizeof(ExtCapHdr) == 4);
+

@@ -91,6 +91,8 @@ enum class pci_dev_type
     TYPE1
 };
 
+//typedef 
+
 struct PciDevBase
 {
     uint16_t        dom_;
@@ -101,6 +103,9 @@ struct PciDevBase
     bool            is_pcie_;
     cfg_space_type  cfg_type_;
     pci_dev_type    type_;
+
+    //                   <compat/ext, cap_type, version, off>
+    std::vector<std::tuple<CapType, uint16_t, uint8_t, uint16_t>> caps_;
 
     std::unique_ptr<uint8_t[]> cfg_space_;
 
@@ -119,6 +124,9 @@ struct PciDevBase
         dword >>= dword_off * 8;
         return dword & ((1 << reg_len * 8) - 1);
     }
+
+    void parse_capabilities();
+    void dump_capabilities() noexcept;
 
     // Common registers for both Type 0 / Type 1 devices
     uint32_t get_vendor_id() const noexcept;

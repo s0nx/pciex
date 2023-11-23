@@ -56,11 +56,13 @@ void PCITopologyCtx::populate()
             auto dev  = static_cast<uint8_t>(std::stoull(mres[3].str(), nullptr, 16));
             auto func = static_cast<uint8_t>(std::stoull(mres[4].str(), nullptr, 16));
 
-            logger.info("Got -> [{:04}:{:02}:{:02x}.{}]", dom, bus, dev, func);
+            logger.info("Got -> [{:04}:{:02x}:{:02x}.{:x}]", dom, bus, dev, func);
 
             uint64_t d_bdf = func | (dev << 8) | (bus << 16) | (dom << 24);
             auto [data, cfg_type, dev_type] = pci::pci_dev_get_data(entry);
             auto dev_ptr = dev_creator_.create(d_bdf, cfg_type, dev_type, std::move(data));
+            dev_ptr->parse_capabilities();
+            dev_ptr->dump_capabilities();
             devs_.push_back(std::move(dev_ptr));
         }
     }
