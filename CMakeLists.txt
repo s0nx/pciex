@@ -14,6 +14,7 @@ target_include_directories(pciex PRIVATE src)
 # src
 target_sources(pciex PRIVATE
     src/ids_parse.cpp
+    src/linux-sysfs.cpp
     src/main.cpp
     src/pciex.cpp
     src/topology.cpp

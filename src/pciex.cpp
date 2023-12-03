@@ -1,4 +1,5 @@
 #include "pciex.h"
+#include "linux-sysfs.h"
 
 namespace pci {
 
@@ -85,15 +86,17 @@ static constexpr RegMap<Type1Cfg, uint32_t, type1_compat_reg_cnt> t1_reg_map {{
 }};
 
 PciDevBase::PciDevBase(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_type,
-                       std::unique_ptr<uint8_t []> cfg_buf) :
+                       const fs::path &dev_path, std::unique_ptr<uint8_t []> cfg_buf) :
     dom_(d_bdf >> 24 & 0xffff),
     bus_(d_bdf >> 16 & 0xff),
     dev_(d_bdf >> 8 & 0xff),
     func_(d_bdf & 0xff),
+    dev_id_str_(fmt::format("[{:02x}:{:02x}.{:x}]", bus_, dev_, func_)),
     is_pcie_(false),
     cfg_type_(cfg_len),
     type_(dev_type),
-    cfg_space_(std::move(cfg_buf))
+    cfg_space_(std::move(cfg_buf)),
+    sys_path_(dev_path)
     {}
 
 void PciDevBase::parse_capabilities()
@@ -148,6 +151,14 @@ void PciDevBase::dump_capabilities() noexcept
                        std::get<2>(cap), ExtCapName(ext_cap_type));
         }
     }
+}
+
+void PciDevBase::parse_bars() noexcept
+{
+    auto dev_resources = sysfs::get_resources(sys_path_);
+    sysfs::dump_resources(dev_resources, dev_id_str_);
+
+    // TODO: parse obtained resources
 }
 
 uint32_t PciDevBase::get_vendor_id() const noexcept

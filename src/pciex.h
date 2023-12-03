@@ -9,7 +9,6 @@
 #include <chrono>
 #include <filesystem>
 #include <utility>
-#include <regex>
 
 #include <fmt/printf.h>
 
@@ -72,26 +71,17 @@ bool is_kptr_set();
 
 namespace pci {
 
-struct CfgEx : public CommonEx
-{
-    using CommonEx::CommonEx;
-};
-
 enum class cfg_space_type
 {
     LEGACY = 256,
     ECS    = 4096
 };
 
-constexpr char pci_dev_path[] { "/sys/bus/pci/devices" };
-
 enum class pci_dev_type
 {
     TYPE0,
     TYPE1
 };
-
-//typedef 
 
 struct PciDevBase
 {
@@ -100,18 +90,24 @@ struct PciDevBase
     uint8_t         dev_;
     uint8_t         func_;
 
+    std::string     dev_id_str_;
+
     bool            is_pcie_;
     cfg_space_type  cfg_type_;
     pci_dev_type    type_;
 
-    //                   <compat/ext, cap_type, version, off>
-    std::vector<std::tuple<CapType, uint16_t, uint8_t, uint16_t>> caps_;
-
     std::unique_ptr<uint8_t[]> cfg_space_;
+
+    // sysfs device path
+    const fs::path        sys_path_;
+
+    // Array of capabity descriptors
+    // <cap type: compat or ext, capability ID, version, offset within config space>
+    std::vector<std::tuple<CapType, uint16_t, uint8_t, uint16_t>> caps_;
 
     PciDevBase() = delete;
     PciDevBase(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_type,
-               std::unique_ptr<uint8_t []> cfg_buf);
+               const fs::path &dev_path, std::unique_ptr<uint8_t []> cfg_buf);
 
     template <typename E>
     constexpr uint32_t get_reg_compat(E e, auto &map) const noexcept
@@ -127,6 +123,7 @@ struct PciDevBase
 
     void parse_capabilities();
     void dump_capabilities() noexcept;
+    void parse_bars() noexcept;
 
     // Common registers for both Type 0 / Type 1 devices
     uint32_t get_vendor_id() const noexcept;
@@ -210,12 +207,14 @@ class PciObjCreator
 public:
     std::unique_ptr<PciDevBase>
     create(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_type,
-           std::unique_ptr<uint8_t []> cfg_buf)
+           const fs::path &dev_path, std::unique_ptr<uint8_t []> cfg_buf)
     {
         if (dev_type == pci_dev_type::TYPE0)
-            return std::make_unique<PciType0Dev>(d_bdf, cfg_len, dev_type, std::move(cfg_buf));
+            return std::make_unique<PciType0Dev>(d_bdf, cfg_len, dev_type, dev_path,
+                                                 std::move(cfg_buf));
         else
-            return std::make_unique<PciType1Dev>(d_bdf, cfg_len, dev_type, std::move(cfg_buf));
+            return std::make_unique<PciType1Dev>(d_bdf, cfg_len, dev_type, dev_path,
+                                                 std::move(cfg_buf));
     }
 };
 
