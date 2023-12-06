@@ -1,5 +1,7 @@
 #include <string>
 #include <iostream>
+#include <bit>
+#include <unistd.h>
 
 #include "pciex.h"
 #include "ids_parse.h"
@@ -10,6 +12,23 @@ Logger logger;
 
 int main()
 {
+    if (getuid()) {
+        fmt::print("'pciex' must be run with root privileges. Exiting.\n");
+        std::exit(EXIT_FAILURE);
+    }
+
+    if (std::endian::native != std::endian::little) {
+        fmt::print("Non little-endian platforms are not supported by now. Exiting\n");
+        std::exit(EXIT_FAILURE);
+    }
+
+    try {
+        logger.init();
+    } catch (std::exception &ex) {
+        fmt::print("{}", ex.what());
+        std::exit(EXIT_FAILURE);
+    }
+
     if (!sys::is_kptr_set())
         logger.warn("vmalloced addresses are hidden\n");
 
@@ -26,7 +45,7 @@ int main()
         topology.populate();
     } catch (std::exception &ex) {
         logger.fatal("{}", ex.what());
-        std::terminate();
+        std::exit(EXIT_FAILURE);
     }
 
     topology.dump_data();
@@ -53,4 +72,6 @@ int main()
         logger.raw("   \\- {}", prog_iface);
         logger.raw("---");
     }
+
+
 }

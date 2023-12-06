@@ -42,9 +42,11 @@ constexpr char log_dir[] { "/var/log/pciex" };
 
 struct Logger
 {
-    std::FILE *log_file;
+    std::FILE *log_file_;
 
-    Logger()
+    Logger() : log_file_(nullptr) {}
+
+    void init()
     {
         fs::directory_entry log_dir_entry {log_dir};
         fs::path log_dir_path(log_dir);
@@ -52,21 +54,22 @@ struct Logger
             fs::create_directory(log_dir_path);
 
         auto log_file_path = log_dir_path / "pciex.log";
-        log_file = std::fopen(log_file_path.c_str(), "w");
-        if (!log_file)
+        log_file_ = std::fopen(log_file_path.c_str(), "w");
+        if (!log_file_)
             throw LoggerEx(fmt::format("Failed to open log file: {}", log_file_path.c_str()));
     }
 
     ~Logger()
     {
-        fclose(log_file);
+        if (log_file_ != nullptr)
+            fclose(log_file_);
     }
 
     template <class... Args>
     void fatal(fmt::format_string<Args...> s, Args&&... args)
     {
         if (LoggerVerbosity >= Verbosity::FATAL)
-            fmt::print(log_file, "[{:>5}] {}\n", VerbName(Verbosity::FATAL),
+            fmt::print(log_file_, "[{:>5}] {}\n", VerbName(Verbosity::FATAL),
                        fmt::format(s, std::forward<Args>(args)...));
     }
 
@@ -74,7 +77,7 @@ struct Logger
     void err(fmt::format_string<Args...> s, Args&&... args)
     {
         if (LoggerVerbosity >= Verbosity::ERR)
-            fmt::print(log_file, "[{:>5}] {}\n", VerbName(Verbosity::ERR),
+            fmt::print(log_file_, "[{:>5}] {}\n", VerbName(Verbosity::ERR),
                        fmt::format(s, std::forward<Args>(args)...));
     }
 
@@ -82,7 +85,7 @@ struct Logger
     void warn(fmt::format_string<Args...> s, Args&&... args)
     {
         if (LoggerVerbosity >= Verbosity::WARN)
-            fmt::print(log_file, "[{:>5}] {}\n", VerbName(Verbosity::WARN),
+            fmt::print(log_file_, "[{:>5}] {}\n", VerbName(Verbosity::WARN),
                        fmt::format(s, std::forward<Args>(args)...));
     }
 
@@ -90,7 +93,7 @@ struct Logger
     void info(fmt::format_string<Args...> s, Args&&... args)
     {
         if (LoggerVerbosity >= Verbosity::INFO)
-            fmt::print(log_file, "[{:>5}] {}\n", VerbName(Verbosity::INFO),
+            fmt::print(log_file_, "[{:>5}] {}\n", VerbName(Verbosity::INFO),
                        fmt::format(s, std::forward<Args>(args)...));
     }
 
@@ -98,7 +101,7 @@ struct Logger
     void raw(fmt::format_string<Args...> s, Args&&... args)
     {
         if (LoggerVerbosity >= Verbosity::INFO)
-            fmt::print(log_file, "      | {}\n",
+            fmt::print(log_file_, "      | {}\n",
                        fmt::format(s, std::forward<Args>(args)...));
     }
 
