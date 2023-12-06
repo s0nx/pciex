@@ -271,11 +271,205 @@ struct RegStatus
 } __attribute__((packed));
 static_assert(sizeof(RegStatus) == 2);
 
+struct RegRevID
+{
+    uint8_t rev_id;
+} __attribute__((packed));
+static_assert(sizeof(RegRevID) == 1);
+
+struct RegClassCode
+{
+    uint8_t prog_iface;
+    uint8_t sub_class_code;
+    uint8_t base_class_code;
+} __attribute__((packed));
+static_assert(sizeof(RegClassCode) == 3);
+
+struct RegCacheLineSize
+{
+    uint8_t cl_size;
+} __attribute__((packed));
+static_assert(sizeof(RegCacheLineSize) == 1);
+
+struct RegLatTimer
+{
+    uint8_t lat_tmr;
+} __attribute__((packed));
+static_assert(sizeof(RegLatTimer) == 1);
+
+struct RegHdrType
+{
+    uint8_t type;
+} __attribute__((packed));
+static_assert(sizeof(RegHdrType) == 1);
+
+struct RegBIST
+{
+    uint8_t   cpl_code : 4;
+    uint8_t       rsvd : 2;
+    uint8_t start_bist : 1;
+    uint8_t   bist_cap : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegBIST) == 1);
+
 struct RegCapPtr
 {
     uint8_t ptr;
 } __attribute__((packed));
 static_assert(sizeof(RegCapPtr) == 1);
+
+struct RegItrLine
+{
+    uint8_t line;
+} __attribute__((packed));
+static_assert(sizeof(RegItrLine) == 1);
+
+struct RegItrPin
+{
+    uint8_t pin;
+} __attribute__((packed));
+static_assert(sizeof(RegItrPin) == 1);
+
+struct RegBARMem
+{
+    uint32_t space_type : 1;
+    uint32_t       type : 2;
+    uint32_t   prefetch : 1;
+    uint32_t       addr : 28;
+} __attribute__((packed));
+static_assert(sizeof(RegBARMem) == 4);
+
+struct RegBARIo
+{
+    uint32_t space_type : 1;
+    uint32_t       rsvd : 1;
+    uint32_t       addr : 30;
+} __attribute__((packed));
+static_assert(sizeof(RegBARIo) == 4);
+
+struct RegCardbusCIS
+{
+    uint32_t ptr;
+} __attribute__((packed));
+static_assert(sizeof(RegCardbusCIS) == 4);
+
+struct RegSubsysVID
+{
+    uint16_t vid;
+} __attribute__((packed));
+static_assert(sizeof(RegSubsysVID) == 2);
+
+struct RegSubsysID
+{
+    uint16_t id;
+} __attribute__((packed));
+static_assert(sizeof(RegSubsysID) == 2);
+
+struct RegExpROMBar
+{
+    uint32_t  ena : 1;
+    uint32_t rsvd : 10;
+    uint32_t  bar : 21;
+} __attribute__((packed));
+static_assert(sizeof(RegExpROMBar) == 4);
+
+struct RegMinGnt
+{
+    uint8_t data;
+} __attribute__((packed));
+static_assert(sizeof(RegMinGnt) == 1);
+
+struct RegMaxLat
+{
+    uint8_t data;
+} __attribute__((packed));
+static_assert(sizeof(RegMaxLat) == 1);
+
+struct RegPrimBusNum
+{
+    uint8_t num;
+} __attribute__((packed));
+static_assert(sizeof(RegPrimBusNum) == 1);
+
+struct RegSecBusNum
+{
+    uint8_t num;
+} __attribute__((packed));
+static_assert(sizeof(RegSecBusNum) == 1);
+
+struct RegSubBusNum
+{
+    uint8_t num;
+} __attribute__((packed));
+static_assert(sizeof(RegSubBusNum) == 1);
+
+struct RegIOBase
+{
+    uint8_t  cap : 4;
+    uint8_t addr : 4;
+} __attribute__((packed));
+static_assert(sizeof(RegIOBase) == 1);
+
+struct RegIOLimit
+{
+    uint8_t  cap : 4;
+    uint8_t addr : 4;
+} __attribute__((packed));
+static_assert(sizeof(RegIOLimit) == 1);
+
+struct RegSecStatus
+{
+    uint16_t                rsvd : 5;
+    uint16_t           mhz66_cap : 1;
+    uint16_t               rsvd1 : 1;
+    uint16_t  fast_b2b_trans_cap : 1;
+    uint16_t master_data_par_err : 1;
+    uint16_t       devsel_timing : 2;
+    uint16_t  signaled_tgt_abort : 1;
+    uint16_t      recv_tgt_abort : 1;
+    uint16_t   recv_master_abort : 1;
+    uint16_t        recv_sys_err : 1;
+    uint16_t   detect_parity_err : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegSecStatus) == 2);
+
+// Used for Memory Base/Limit, Prefetchable Memory Base/Limit registers
+struct RegMemBL
+{
+    uint16_t rsvd : 4;
+    uint16_t addr : 12;
+} __attribute__((packed));
+static_assert(sizeof(RegMemBL) == 2);
+
+struct RegPrefMemBL
+{
+    uint32_t addr;
+} __attribute__((packed));
+static_assert(sizeof(RegPrefMemBL) == 4);
+
+struct RegIOUpperBL
+{
+    uint16_t addr;
+} __attribute__((packed));
+static_assert(sizeof(RegIOUpperBL) == 2);
+
+struct RegBridgeCtl
+{
+    uint16_t  parity_err_resp_ena : 1;
+    uint16_t             serr_ena : 1;
+    uint16_t              isa_ena : 1;
+    uint16_t              vga_ena : 1;
+    uint16_t     vga_16bit_decode : 1;
+    uint16_t    master_abort_mode : 1;
+    uint16_t        sec_bus_reset : 1;
+    uint16_t   fast_b2b_trans_ena : 1;
+    uint16_t     prim_discard_tmr : 1;
+    uint16_t      sec_discard_tmr : 1;
+    uint16_t   discard_tmr_status : 1;
+    uint16_t discard_tmr_serr_ena : 1;
+    uint16_t                 rsvd : 4;
+} __attribute__((packed));
+static_assert(sizeof(RegBridgeCtl) == 2);
 
 enum class CapType
 {
