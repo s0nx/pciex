@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2023 Petr Vyazovik <xen@f-m.fm>
+
 #include "pciex.h"
 
 void vm::VmallocStats::add_entry(const VmallocEntry &entry)

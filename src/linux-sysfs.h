@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2023 Petr Vyazovik <xen@f-m.fm>
+
 #pragma once
 
 // sysfs interface to gather PCI device information
