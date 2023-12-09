@@ -474,6 +474,382 @@ struct RegBridgeCtl
 } __attribute__((packed));
 static_assert(sizeof(RegBridgeCtl) == 2);
 
+struct CompatCapHdr
+{
+    uint8_t cap_id;
+    uint8_t next_cap;
+} __attribute__((packed));
+static_assert(sizeof(CompatCapHdr) == 2);
+
+struct ExtCapHdr
+{
+    uint16_t  cap_id;
+    uint16_t  cap_ver : 4;
+    uint16_t next_cap : 12;
+} __attribute__((packed));
+static_assert(sizeof(ExtCapHdr) == 4);
+
+struct RegPciECap
+{
+    uint16_t       cap_ver : 4;
+    uint16_t dev_port_type : 4;
+    uint16_t     slot_impl : 1;
+    uint16_t   itr_msg_num : 5;
+    uint16_t          rsvd : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegPciECap) == 2);
+
+struct RegDevCap
+{
+    uint32_t max_pyld_size_supported : 3;
+    uint32_t     phan_func_supported : 2;
+    uint32_t ext_tag_field_supported : 1;
+    uint32_t       ep_l0s_accept_lat : 3;
+    uint32_t        ep_l1_accept_lat : 3;
+    uint32_t                    rsvd : 3;
+    uint32_t      role_based_err_rep : 1;
+    uint32_t    cap_slot_pwr_lim_val : 8;
+    uint32_t  cap_slot_pwr_lim_scale : 2;
+    uint32_t                 flr_cap : 1;
+    uint32_t                   rsvd1 : 3;
+} __attribute__((packed));
+static_assert(sizeof(RegDevCap) == 4);
+
+struct RegDevCtl
+{
+    uint16_t     correct_err_rep_ena : 1;
+    uint16_t   non_fatal_err_rep_ena : 1;
+    uint16_t       fatal_err_rep_ena : 1;
+    uint16_t unsupported_req_rep_ena : 1;
+    uint16_t       relaxed_order_ena : 1;
+    uint16_t           max_pyld_size : 3;
+    uint16_t       ext_tag_field_ena : 1;
+    uint16_t           phan_func_ena : 1;
+    uint16_t        aux_power_pm_ena : 1;
+    uint16_t            no_snoop_ena : 1;
+    uint16_t       max_read_req_size : 3;
+    uint16_t brd_conf_retry_init_flr : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegDevCtl) == 2);
+
+struct RegDevStatus
+{
+    uint16_t         corr_err_detected : 1;
+    uint16_t    non_fatal_err_detected : 1;
+    uint16_t        fatal_err_detected : 1;
+    uint16_t  unsupported_req_detected : 1;
+    uint16_t          aux_pwr_detected : 1;
+    uint16_t             trans_pending : 1;
+    uint16_t emerg_pwr_reduct_detected : 1;
+    uint16_t                      rsvd : 9;
+} __attribute__((packed));
+static_assert(sizeof(RegDevStatus) == 2);
+
+struct RegLinkCap
+{
+    uint32_t               max_link_speed : 4;
+    uint32_t               max_link_width : 6;
+    uint32_t                 aspm_support : 2;
+    uint32_t                 l0s_exit_lat : 3;
+    uint32_t                  l1_exit_lat : 3;
+    uint32_t                  clk_pwr_mng : 1;
+    uint32_t       surpr_down_err_rep_cap : 1;
+    uint32_t dlink_layer_link_act_rep_cap : 1;
+    uint32_t           link_bw_notify_cap : 1;
+    uint32_t               aspm_opt_compl : 1;
+    uint32_t                         rsvd : 1;
+    uint32_t                     port_num : 8;
+} __attribute__((packed));
+static_assert(sizeof(RegLinkCap) == 4);
+
+struct RegLinkCtl
+{
+    uint16_t                 aspm_ctl : 2;
+    uint16_t                    rsvd0 : 1;
+    uint16_t                      rcb : 1;
+    uint16_t             link_disable : 1;
+    uint16_t             retrain_link : 1;
+    uint16_t          common_clk_conf : 1;
+    uint16_t                ext_synch : 1;
+    uint16_t               clk_pm_ena : 1;
+    uint16_t    hw_auto_width_disable : 1;
+    uint16_t      link_bw_mng_itr_ena : 1;
+    uint16_t link_auto_bw_mng_itr_ena : 1;
+    uint16_t                    rsvd1 : 3;
+    uint16_t            drs_signl_ctl : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegLinkCtl) == 2);
+
+struct RegLinkStatus
+{
+    uint16_t          curr_link_speed : 4;
+    uint16_t    negotiated_link_width : 6;
+    uint16_t                     rsvd : 1;
+    uint16_t            link_training : 1;
+    uint16_t            slot_clk_conf : 1;
+    uint16_t data_link_layer_link_act : 1;
+    uint16_t       link_bw_mng_status : 1;
+    uint16_t      link_auto_bw_status : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegLinkStatus) == 2);
+
+struct RegSlotCap
+{
+    uint32_t       attn_btn_pres : 1;
+    uint32_t        pwr_ctl_pres : 1;
+    uint32_t       mrl_sens_pres : 1;
+    uint32_t       attn_ind_pres : 1;
+    uint32_t        pwr_ind_pres : 1;
+    uint32_t      hot_plug_surpr : 1;
+    uint32_t        hot_plug_cap : 1;
+    uint32_t    slot_pwr_lim_val : 8;
+    uint32_t  slot_pwr_lim_scale : 2;
+    uint32_t   em_interlock_pres : 1;
+    uint32_t no_cmd_cmpl_support : 1;
+    uint32_t       phys_slot_num : 13;
+} __attribute__((packed));
+static_assert(sizeof(RegSlotCap) == 4);
+
+struct RegSlotCtl
+{
+    uint16_t             attn_btn_pres_ena : 1;
+    uint16_t        pwr_fault_detected_ena : 1;
+    uint16_t          mrl_sens_changed_ena : 1;
+    uint16_t       pres_detect_changed_ena : 1;
+    uint16_t              cmd_cmpl_itr_ena : 1;
+    uint16_t              hot_plug_itr_ena : 1;
+    uint16_t                  attn_ind_ctl : 2;
+    uint16_t                   pwr_ind_ctl : 2;
+    uint16_t                   pwr_ctl_ctl : 1;
+    uint16_t              em_interlock_ctl : 1;
+    uint16_t dlink_layer_state_changed_ena : 1;
+    uint16_t         auto_slow_prw_lim_dis : 1;
+    uint16_t                          rsvd : 2;
+} __attribute__((packed));
+static_assert(sizeof(RegSlotCtl) == 2);
+
+struct RegSlotStatus
+{
+    uint16_t             attn_btn_pres : 1;
+    uint16_t        pwr_fault_detected : 1;
+    uint16_t          mrl_sens_changed : 1;
+    uint16_t       pres_detect_changed : 1;
+    uint16_t                  cmd_cmpl : 1;
+    uint16_t            mrl_sens_state : 1;
+    uint16_t         pres_detect_state : 1;
+    uint16_t       em_interlock_status : 1;
+    uint16_t dlink_layer_state_changed : 1;
+    uint16_t                      rsvd : 7;
+} __attribute__((packed));
+static_assert(sizeof(RegSlotStatus) == 2);
+
+struct RegRootCtl
+{
+    uint16_t sys_err_on_correct_err_ena : 1;
+    uint16_t sys_err_on_non_fat_err_ena : 1;
+    uint16_t     sys_err_on_fat_err_ena : 1;
+    uint16_t                pme_itr_ena : 1;
+    uint16_t             crs_sw_vis_ena : 1;
+    uint16_t                       rsvd : 11;
+} __attribute__((packed));
+static_assert(sizeof(RegRootCtl) == 2);
+
+struct RegRootCap
+{
+    uint16_t crs_sw_vis : 1;
+    uint16_t       rsvd : 15;
+} __attribute__((packed));
+static_assert(sizeof(RegRootCap) == 2);
+
+struct RegRootStatus
+{
+    uint32_t  pme_req_id : 16;
+    uint32_t  pme_status : 1;
+    uint32_t pme_pending : 1;
+    uint32_t        rsvd : 14;
+} __attribute__((packed));
+static_assert(sizeof(RegRootStatus) == 4);
+
+struct RegDevCap2
+{
+    uint32_t  cmpl_timeout_rng_support : 4;
+    uint32_t  cmpl_timeout_dis_support : 1;
+    uint32_t           ari_fwd_support : 1;
+    uint32_t   atomic_op_route_support : 1;
+    uint32_t atomic_op_32_cmpl_support : 1;
+    uint32_t atomic_op_64_cmpl_support : 1;
+    uint32_t      cas_128_cmpl_support : 1;
+    uint32_t    no_ro_ena_prpr_passing : 1;
+    uint32_t               ltr_support : 1;
+    uint32_t          tph_cmpl_support : 2;
+    uint32_t                ln_sys_cls : 2;
+    uint32_t    tag_10bit_cmpl_support : 1;
+    uint32_t     tag_10bit_req_support : 1;
+    uint32_t            obff_supported : 2;
+    uint32_t     ext_fmt_field_support : 1;
+    uint32_t  end_end_tlp_pref_support : 1;
+    uint32_t      max_end_end_tlp_pref : 2;
+    uint32_t  emerg_pwr_reduct_support : 2;
+    uint32_t emerg_pwr_reduct_init_req : 1;
+    uint32_t                      rsvd : 4;
+    uint32_t               frs_support : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegDevCap2) == 4);
+
+struct RegDevCtl2
+{
+    uint16_t       cmpl_timeout_val : 4;
+    uint16_t       cmpl_timeout_dis : 1;
+    uint16_t            ari_fwd_ena : 1;
+    uint16_t      atomic_op_req_ena : 1;
+    uint16_t    atomic_op_egr_block : 1;
+    uint16_t            ido_req_ena : 1;
+    uint16_t           ido_cmpl_ena : 1;
+    uint16_t                ltr_ena : 1;
+    uint16_t   emerg_pwr_reduct_req : 1;
+    uint16_t      tag_10bit_req_ena : 1;
+    uint16_t               obff_ena : 2;
+    uint16_t end_end_tlp_pref_block : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegDevCtl2) == 2);
+
+struct RegDevStatus2
+{
+    uint16_t rsvd;
+} __attribute__((packed));
+static_assert(sizeof(RegDevStatus2) == 2);
+
+struct RegLinkCap2
+{
+    uint32_t                         rsvd0 : 1;
+    uint32_t           supported_speed_vec : 7;
+    uint32_t             crosslink_support : 1;
+    uint32_t low_skp_os_gen_supp_speed_vec : 7;
+    uint32_t low_skp_os_rec_supp_speed_vec : 7;
+    uint32_t     retmr_pres_detect_support : 1;
+    uint32_t two_retmr_pres_detect_support : 1;
+    uint32_t                         rsvd1 : 6;
+    uint32_t                   drs_support : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegLinkCap2) == 4);
+
+struct RegLinkCtl2
+{
+    uint16_t            tgt_link_speed : 4;
+    uint16_t          enter_compliance : 1;
+    uint16_t         hw_auto_speed_dis : 1;
+    uint16_t            select_de_emph : 1;
+    uint16_t              trans_margin : 3;
+    uint16_t      enter_mod_compliance : 1;
+    uint16_t            compliance_sos : 1;
+    uint16_t compliance_preset_de_emph : 4;
+} __attribute__((packed));
+static_assert(sizeof(RegLinkCtl2) == 2);
+
+struct RegLinkStatus2
+{
+    uint16_t curr_de_emph_lvl      : 1;
+    uint16_t eq_8gts_compl         : 1;
+    uint16_t eq_8gts_ph1_success   : 1;
+    uint16_t eq_8gts_ph2_success   : 1;
+    uint16_t eq_8gts_ph3_success   : 1;
+    uint16_t link_eq_req_8gts      : 1;
+    uint16_t retmr_pres_detect     : 1;
+    uint16_t two_retmr_pres_detect : 1;
+    uint16_t crosslink_resolution  : 2;
+    uint16_t rsvd                  : 2;
+    uint16_t downstream_comp_pres  : 3;
+    uint16_t drs_msg_recv          : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegLinkStatus2) == 2);
+
+struct RegSlotCap2
+{
+    uint32_t rsvd;
+} __attribute__((packed));
+static_assert(sizeof(RegSlotCap2) == 4);
+
+struct RegSlotCtl2
+{
+    uint16_t rsvd;
+} __attribute__((packed));
+static_assert(sizeof(RegSlotCtl2) == 2);
+
+struct RegSlotStatus2
+{
+    uint16_t rsvd;
+} __attribute__((packed));
+static_assert(sizeof(RegSlotStatus2) == 2);
+
+// PCIe capability strucuture
+struct PciECap
+{
+    CompatCapHdr   hdr;          // 0x0
+    RegPciECap     pcie_cap_reg; // 0x2
+    RegDevCap      dev_cap;      // 0x4
+    RegDevCtl      dev_ctl;      // 0x8
+    RegDevStatus   dev_status;   // 0xa
+    RegLinkCap     link_cap;     // 0xc
+    RegLinkCtl     link_ctl;     // 0x10
+    RegLinkStatus  link_status;  // 0x12
+    RegSlotCap     slot_cap;     // 0x14
+    RegSlotCtl     slot_ctl;     // 0x18
+    RegSlotStatus  slot_status;  // 0x1a
+    RegRootCtl     root_ctl;     // 0x1c
+    RegRootCap     root_cap;     // 0x1e
+    RegRootStatus  root_status;  // 0x20
+
+    RegDevCap2     dev_cap2;     // 0x24
+    RegDevCtl2     dev_ctl2;     // 0x28
+    RegDevStatus2  dev_status2;  // 0x2a
+    RegLinkCap2    link_cap2;    // 0x2c
+    RegLinkCtl2    link_ctl2;    // 0x30
+    RegLinkStatus2 link_status2; // 0x32
+    RegSlotCap2    slot_cap2;    // 0x34
+    RegSlotCtl2    slot_ctl2;    // 0x38
+    RegSlotStatus2 slot_status2; // 0x3a
+} __attribute__((packed));
+static_assert(sizeof(PciECap) == 0x3c);
+
+
+struct RegPMCap
+{
+    uint16_t version                 : 3;
+    uint16_t pme_clk                 : 1;
+    uint16_t imm_readiness_on_ret_d0 : 1;
+    uint16_t dsi                     : 1;
+    uint16_t aux_cur                 : 3;
+    uint16_t d1_support              : 1;
+    uint16_t d2_support              : 1;
+    uint16_t pme_support             : 5;
+} __attribute__((packed));
+static_assert(sizeof(RegPMCap) == 0x2);
+
+struct RegPMCtlStatus
+{
+    uint32_t pwr_state     : 2;
+    uint32_t rsvd0         : 1;
+    uint32_t no_soft_reset : 1;
+    uint32_t rsvd1         : 4;
+    uint32_t pme_en        : 1;
+    uint32_t data_select   : 4;
+    uint32_t data_scale    : 2;
+    uint32_t pme_status    : 1;
+    uint32_t rsvd2         : 6;
+    uint32_t rsvd3         : 1;
+    uint32_t rsvd4         : 1;
+    uint32_t data          : 8;
+} __attribute__((packed));
+static_assert(sizeof(RegPMCtlStatus) == 0x4);
+
+struct PciPMCap
+{
+    CompatCapHdr   hdr;          // 0x0
+    RegPMCap       pmcap;        // 0x2
+    RegPMCtlStatus pmcs;         // 0x4
+} __attribute__((packed));
+static_assert(sizeof(PciPMCap) == 0x8);
+
 enum class CapType
 {
     compat,
@@ -706,19 +1082,4 @@ constexpr auto ExtCapName(const ExtCapID cap_id)
         return "";
     }
 }
-
-struct CompatCapHdr
-{
-    uint8_t cap_id;
-    uint8_t next_cap;
-} __attribute__((packed));
-static_assert(sizeof(CompatCapHdr) == 2);
-
-struct ExtCapHdr
-{
-    uint16_t  cap_id;
-    uint16_t  cap_ver : 4;
-    uint16_t next_cap : 12;
-} __attribute__((packed));
-static_assert(sizeof(ExtCapHdr) == 4);
 
