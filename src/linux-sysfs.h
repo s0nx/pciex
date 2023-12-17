@@ -11,7 +11,8 @@
 
 extern Logger logger;
 
-constexpr char pci_dev_path[] { "/sys/bus/pci/devices" };
+constexpr std::string_view pci_devs_path {"/sys/bus/pci/devices"};
+constexpr std::string_view pci_bus_path {"/sys/class/pci_bus"};
 
 namespace sysfs {
 
@@ -22,7 +23,7 @@ struct CfgEx : public CommonEx
 
 // dom+BDF, cfg space buf, cfg space len, path to device in sysfs
 typedef std::tuple<uint64_t, std::unique_ptr<uint8_t []>, int32_t, fs::path> dev_desc;
-std::vector<dev_desc> scan_pci_bus();
+std::vector<dev_desc> scan_pci_devices();
 
 typedef std::pair<std::unique_ptr<uint8_t []>, int32_t> cfg_space_desc;
 cfg_space_desc get_cfg_space_buf(const fs::path &);
@@ -35,6 +36,10 @@ void dump_resources(const std::vector<res_desc> &, const std::string &dev_id = {
 std::string get_driver(const fs::path &);
 int32_t     get_numa_node(const fs::path &);
 uint32_t    get_iommu_group(const fs::path &);
+
+// dom, bus, is root bus
+typedef std::tuple<uint16_t, uint8_t, bool> bus_desc;
+std::vector<bus_desc> scan_buses();
 
 } // namespace sysfs
 

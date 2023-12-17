@@ -8,7 +8,7 @@ namespace pci {
 
 void PCITopologyCtx::populate()
 {
-    auto devices = sysfs::scan_pci_bus();
+    auto devices = sysfs::scan_pci_devices();
 
     for (auto &dev : devices) {
         auto d_bdf    = std::get<0>(dev);
@@ -29,6 +29,14 @@ void PCITopologyCtx::populate()
                     drv_name.empty() ? "<none>" : drv_name);
         devs_.push_back(std::move(pci_dev));
     }
+
+    std::ranges::sort(devs_, [](const auto &a, const auto &b) {
+        uint64_t d_bdf_a = a->func_ | (a->dev_ << 8) | (a->bus_ << 16) | (a->dom_ << 24);
+        uint64_t d_bdf_b = b->func_ | (b->dev_ << 8) | (b->bus_ << 16) | (b->dom_ << 24);
+        return d_bdf_a < d_bdf_b;
+    });
+
+    auto res = sysfs::scan_buses();
 }
 
 void PCITopologyCtx::dump_data() const noexcept
