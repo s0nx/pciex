@@ -24,6 +24,7 @@ void PCITopologyCtx::populate()
         pci_dev->parse_capabilities();
         pci_dev->dump_capabilities();
         pci_dev->parse_bars();
+        pci_dev->parse_ids(iparser);
         auto drv_name = sysfs::get_driver(dev_path);
         logger.info("{} driver: {}", pci_dev->dev_id_str_,
                     drv_name.empty() ? "<none>" : drv_name);
@@ -36,13 +37,45 @@ void PCITopologyCtx::populate()
         return d_bdf_a < d_bdf_b;
     });
 
-    auto res = sysfs::scan_buses();
+    auto bus_descs = sysfs::scan_buses();
+
+    for (auto &bus : bus_descs) {
+        PCIBus pci_bus(std::get<0>(bus), std::get<1>(bus), std::get<2>(bus));
+        std::ranges::copy_if(devs_, std::back_inserter(pci_bus.devs_), [&](const auto &dev) {
+                return dev->bus_ == std::get<1>(bus);
+        });
+        auto res = buses_.insert(std::make_pair(std::get<1>(bus), std::move(pci_bus)));
+        if (!res.second)
+            throw CommonEx(fmt::format("Failed to initialize bus {:02x}", std::get<1>(bus)));
+    }
+
 }
 
 void PCITopologyCtx::dump_data() const noexcept
 {
     for (const auto &el : devs_)
         el->print_data();
+}
+
+void PCITopologyCtx::print_bus(const PCIBus &bus, int off)
+{
+    for (const auto &dev : bus.devs_) {
+        if (dev->type_ == pci::pci_dev_type::TYPE1) {
+            auto fmt_str = fmt::format("{:\t>{}} \\--> {}", "", off, dev->dev_id_str_);
+            logger.raw("{}", fmt_str);
+
+            auto type1_dev = dynamic_cast<PciType1Dev *>(dev.get());
+            auto sec_bus = buses_.find(type1_dev->get_sec_bus_num());
+            if (sec_bus != buses_.end()) {
+                print_bus(sec_bus->second, off + 1);
+            }
+
+        } else {
+            auto fmt_str = fmt::format("{:\t>{}} \\--> {}", "", off, dev->dev_id_str_);
+            logger.raw("{}", fmt_str);
+        }
+    }
+
 }
 
 } // namespace pci

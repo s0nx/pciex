@@ -94,6 +94,7 @@ PciDevBase::PciDevBase(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_
     bus_(d_bdf >> 16 & 0xff),
     dev_(d_bdf >> 8 & 0xff),
     func_(d_bdf & 0xff),
+    ids_names_(IDS_TYPES_CNT),
     dev_id_str_(fmt::format("[{:02x}:{:02x}.{:x}]", bus_, dev_, func_)),
     is_pcie_(false),
     cfg_type_(cfg_len),
@@ -162,6 +163,20 @@ void PciDevBase::parse_bars() noexcept
     sysfs::dump_resources(dev_resources, dev_id_str_);
 
     // TODO: parse obtained resources
+}
+
+void PciDevBase::parse_ids(PciIdParser &parser)
+{
+    auto vid    = get_vendor_id();
+    auto dev_id = get_device_id();
+    auto cc     = get_class_code();
+
+    ids_names_[VENDOR] = parser.vendor_name_lookup(vid);
+    ids_names_[DEVICE] = parser.device_name_lookup(vid, dev_id);
+
+    std::tie(ids_names_[CLASS],
+             ids_names_[SUBCLASS],
+             ids_names_[PROG_IFACE]) = parser.class_info_lookup(cc);
 }
 
 uint32_t PciDevBase::get_vendor_id() const noexcept

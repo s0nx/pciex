@@ -10,6 +10,8 @@
 #include "ids_parse.h"
 #include "log.h"
 
+#include "ui/screen.h"
+
 Verbosity LoggerVerbosity = Verbosity::INFO;
 Logger logger;
 
@@ -75,6 +77,63 @@ int main()
         logger.raw("   \\- {}", prog_iface);
         logger.raw("---");
     }
+
+    //logger.info("Dumping buses info: >>>");
+
+    //for (const auto &bus : topology.buses_) {
+    //    if (bus.second.is_root_) {
+    //        logger.raw("[ R {:04}:{:02x} ]", bus.second.dom_, bus.second.bus_nr_);
+
+    //        int curr_poff = 1;
+    //        topology.print_bus(bus.second, curr_poff);
+    //    }
+    //}
+
+    auto topo_canvas = ui::MakeTopologyComp(2000, 2000);
+    topo_canvas->AddTopologyElements(topology);
+
+    auto make_box_lambda = [&](size_t dimx, size_t dimy, std::string title, std::string text) {
+        auto elem = ftxui::window(ftxui::text(title) | ftxui::hcenter | ftxui::bold,
+                                  ftxui::text(text) | ftxui::hcenter ) |
+                                  ftxui::size(ftxui::WIDTH, ftxui::EQUAL, dimx) |
+                                  ftxui::size(ftxui::HEIGHT, ftxui::EQUAL, dimy);
+        return elem;
+    };
+
+    auto box_renderer = ftxui::Renderer([&] {
+        return ftxui::vbox({
+            make_box_lambda(5, 5,  "reg1", "0xffbf"),
+            make_box_lambda(10, 5, "reg2", "0xdd"),
+            make_box_lambda(10, 3, "reg3", "0x11ef"),
+            make_box_lambda(7, 8,  "reg4", "0x87ab")
+        });
+    });
+
+    bool show_info = false;
+
+    auto box_container = ftxui::Container::Vertical({
+        box_renderer,
+        //ftxui::Checkbox("show me", &show_info),
+        ftxui::Button("my button", [&] { show_info = show_info ? false : true; },
+                      ftxui::ButtonOption::Animated()),
+        ftxui::Button("my button 2", [&] { show_info = show_info ? false : true; }),
+        ftxui::Renderer([] {
+            return ftxui::text("privet pes") | ftxui::bold;
+        }) | ftxui::Maybe([&] { return show_info == true; })
+    });
+
+    auto container = ftxui::Container::Horizontal({
+        topo_canvas,
+        ftxui::Renderer([] { return ftxui::separator(); }),
+        ftxui::Checkbox("test checkbox", &show_info),
+        ftxui::Renderer([] { return ftxui::separator(); }),
+        box_container
+    });
+
+    auto screen = ftxui::ScreenInteractive::Fullscreen();
+    screen.Loop(container);
+
+    return 0;
 
 
 }

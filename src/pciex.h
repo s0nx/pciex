@@ -12,11 +12,13 @@
 #include <chrono>
 #include <filesystem>
 #include <utility>
+#include <map>
 
 #include <fmt/printf.h>
 
 #include "log.h"
 #include "pci_regs.h"
+#include "ids_parse.h"
 
 extern Logger logger;
 
@@ -86,12 +88,24 @@ enum class pci_dev_type
     TYPE1
 };
 
+enum ids_types
+{
+    VENDOR,
+    DEVICE,
+    CLASS,
+    SUBCLASS,
+    PROG_IFACE,
+    IDS_TYPES_CNT
+};
+
 struct PciDevBase
 {
     uint16_t        dom_;
     uint8_t         bus_;
     uint8_t         dev_;
     uint8_t         func_;
+
+    std::vector<std::string_view> ids_names_;
 
     std::string     dev_id_str_;
 
@@ -127,6 +141,7 @@ struct PciDevBase
     void parse_capabilities();
     void dump_capabilities() noexcept;
     void parse_bars() noexcept;
+    void parse_ids(PciIdParser &parser);
 
     // Common registers for both Type 0 / Type 1 devices
     uint32_t get_vendor_id() const noexcept;
@@ -193,30 +208,29 @@ struct PciType1Dev : public PciDevBase
     void print_data() const noexcept;
 };
 
-struct pci_bus
+struct PCIBus
 {
-    uint32_t bus_nr;
-    std::vector<std::unique_ptr<PciDevBase>> devices;
-};
+    uint16_t dom_;
+    uint16_t bus_nr_;
+    bool     is_root_ {false};
+    std::vector<std::shared_ptr<PciDevBase>> devs_;
 
-struct pci_domain
-{
-    uint16_t num;
-    std::vector<pci_bus> buses;
+    PCIBus(uint16_t dom, uint16_t nr, bool is_root)
+        : dom_(dom), bus_nr_(nr), is_root_(is_root) {}
 };
 
 class PciObjCreator
 {
 public:
-    std::unique_ptr<PciDevBase>
+    std::shared_ptr<PciDevBase>
     create(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_type,
            const fs::path &dev_path, std::unique_ptr<uint8_t []> cfg_buf)
     {
         if (dev_type == pci_dev_type::TYPE0)
-            return std::make_unique<PciType0Dev>(d_bdf, cfg_len, dev_type, dev_path,
+            return std::make_shared<PciType0Dev>(d_bdf, cfg_len, dev_type, dev_path,
                                                  std::move(cfg_buf));
         else
-            return std::make_unique<PciType1Dev>(d_bdf, cfg_len, dev_type, dev_path,
+            return std::make_shared<PciType1Dev>(d_bdf, cfg_len, dev_type, dev_path,
                                                  std::move(cfg_buf));
     }
 };
@@ -224,10 +238,15 @@ public:
 struct PCITopologyCtx
 {
     PciObjCreator dev_creator_;
-    std::vector<std::unique_ptr<PciDevBase>> devs_;
+    PciIdParser iparser;
+    std::vector<std::shared_ptr<PciDevBase>> devs_;
+    std::map<uint16_t, PCIBus> buses_;
 
     void populate();
     void dump_data() const noexcept;
+
+    //XXX: DEBUG
+    void print_bus(const PCIBus &, int off);
 };
 
 } // namespace pci

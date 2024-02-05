@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 find_library(FMT_LIB
     NAMES fmt
-    PATHS /lib /usr/lib
+    PATHS /lib /usr/lib /usr/lib64
 )
 
 if(NOT FMT_LIB)
@@ -16,7 +16,7 @@ set(FETCHCONTENT_UPDATES_DISCONNECTED TRUE)
 FetchContent_Declare(
 ftxui
 GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
-GIT_TAG        v5.0.0
+GIT_TAG        main
 )
 
 FetchContent_GetProperties(ftxui)
@@ -45,6 +45,7 @@ target_sources(pciex PRIVATE
     src/pciex.cpp
     src/topology.cpp
     src/util.cpp
+    src/ui/screen.cpp
 )
 
 target_compile_features(pciex PRIVATE cxx_std_20)

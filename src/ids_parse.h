@@ -3,9 +3,16 @@
 
 #pragma once
 
-#include "pciex.h"
 #include <unordered_map>
 #include <span>
+#include <cstdint>
+#include <string_view>
+#include <memory>
+
+#include "util.h"
+#include "log.h"
+
+extern Logger logger;
 
 namespace pci {
 

@@ -200,6 +200,7 @@ std::vector<bus_desc> scan_buses()
             bus_vt.emplace_back(dom, bus, is_root_bus);
         }
     }
+
     return bus_vt;
 }
 
