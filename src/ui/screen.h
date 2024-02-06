@@ -198,7 +198,7 @@ struct CanvasDevBlockMap
     std::shared_ptr<CanvasElemPCIDev> selected_dev_;
 
     bool Insert(std::shared_ptr<CanvasElemPCIDev> dev);
-    void SelectDevice(const uint16_t mouse_x, const uint16_t mouse_y);
+    void SelectDevice(const uint16_t mouse_x, const uint16_t mouse_y, ScrollableCanvas &canvas);
 };
 
 constexpr uint16_t child_elem_xoff = 16;

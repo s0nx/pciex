@@ -156,7 +156,12 @@ void CanvasElemPCIDev::Draw(ScrollableCanvas &canvas)
             p.bold = true;
         });
     else
-        canvas.DrawBoxLine(points_);
+        // to remove element highlight, 'inverse' highlight style has to
+        // be explicitly specified
+        canvas.DrawBoxLine(points_, [](ftxui::Pixel &p) {
+            p.foreground_color = ftxui::Color::Default;
+            p.bold = false;
+        });
 
     // draw text
     auto x1 = std::get<0>(points_);
@@ -209,7 +214,8 @@ bool CanvasDevBlockMap::Insert(std::shared_ptr<CanvasElemPCIDev> dev)
     return res.second;
 }
 
-void CanvasDevBlockMap::SelectDevice(const uint16_t mouse_x, const uint16_t mouse_y)
+void CanvasDevBlockMap::SelectDevice(const uint16_t mouse_x, const uint16_t mouse_y,
+                                     ScrollableCanvas &canvas)
 {
     auto y_iter = blocks_y_dim_.lower_bound({mouse_y * 4, 0});
     y_iter--;
@@ -220,10 +226,17 @@ void CanvasDevBlockMap::SelectDevice(const uint16_t mouse_x, const uint16_t mous
         auto x_in_pixels = mouse_x * sym_width;
 
         if (x_in_pixels >= x && x_in_pixels <= x + len) {
-            if (selected_dev_ != nullptr)
+            if (selected_dev_ != nullptr) {
                 selected_dev_->selected_ = false;
+                // redraw previously selected element since it's not selected now
+                selected_dev_->Draw(canvas);
+            }
+
             selected_dev_ = y_iter->second;
             selected_dev_->selected_ = true;
+
+            // redraw newly selected element
+            selected_dev_->Draw(canvas);
         }
     }
 }
@@ -238,9 +251,7 @@ ftxui::Element PCITopoUIComp::Render()
                       is_active ? ftxui::select :
                       ftxui::nothing;
 
-    DrawElements();
-
-    return scrollable_canvas(std::move(canvas_)) |
+    return scrollable_canvas(canvas_) |
            focus_mgmt | ftxui::size(ftxui::WIDTH, ftxui::LESS_THAN, 80) |
            ftxui::reflect(box_);
 }
@@ -268,8 +279,8 @@ bool PCITopoUIComp::OnEvent(ftxui::Event event)
 
         if (event.mouse().button == ftxui::Mouse::Left)
             block_map.SelectDevice(event.mouse().x + area->off_x_,
-                                   event.mouse().y + area->off_y_);
-
+                                   event.mouse().y + area->off_y_,
+                                   canvas_);
 
         return true;
     }
@@ -308,6 +319,8 @@ void PCITopoUIComp::AddTopologyElements(const pci::PCITopologyCtx &ctx)
             AddBusDevices(bus.second, ctx.buses_, conn_pos, x + child_elem_xoff, &y);
         }
     }
+
+    DrawElements();
 }
 
 void PCITopoUIComp::DrawElements() noexcept
