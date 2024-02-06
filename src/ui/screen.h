@@ -90,8 +90,8 @@ struct CanvasElementBase
 };
 
 typedef std::pair<uint16_t, uint16_t> PointDesc;
-constexpr uint32_t sym_height = 4;
-constexpr uint32_t sym_width = 2;
+constexpr uint16_t sym_height = 4;
+constexpr uint16_t sym_width = 2;
 
 // Visually connects parent to child elements on canvas
 struct CanvasElemConnector : public CanvasElementBase
@@ -240,5 +240,8 @@ inline auto MakeTopologyComp(int width, int height)
 {
     return ftxui::Make<PCITopoUIComp>(width, height);
 }
+
+std::pair<uint16_t, uint16_t>
+GetCanvasSizeEstimate(const pci::PCITopologyCtx &ctx) noexcept;
 
 } // namespace ui

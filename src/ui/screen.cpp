@@ -387,5 +387,28 @@ void PCITopoUIComp::AddBusDevices(const pci::PCIBus &current_bus,
     }
 }
 
+std::pair<uint16_t, uint16_t>
+GetCanvasSizeEstimate(const pci::PCITopologyCtx &ctx) noexcept
+{
+    uint16_t x_size = 0, y_size = 0;
+    uint16_t root_bus_elem_height = 3 * sym_height;
+    uint16_t dev_elem_height = 5 * sym_height;
+
+
+    auto root_bus_num = std::ranges::count_if(ctx.buses_, [](auto bus) { return bus.second.is_root_; });
+    y_size += root_bus_num * root_bus_elem_height;
+
+    auto dev_cnt = ctx.devs_.size();
+    y_size += dev_cnt * dev_elem_height;
+
+    y_size += 16;
+
+    // Width of the canvas depends on the actual devices placement,
+    // so it's a constant for now
+    x_size = 500;
+    logger.info("Estimated canvas size: {} x {}", x_size, y_size);
+
+    return {x_size, y_size};
+}
 
 } //namespace ui

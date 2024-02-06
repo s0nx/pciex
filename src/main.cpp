@@ -89,7 +89,9 @@ int main()
     //    }
     //}
 
-    auto topo_canvas = ui::MakeTopologyComp(2000, 2000);
+    auto [width, height] = ui::GetCanvasSizeEstimate(topology);
+
+    auto topo_canvas = ui::MakeTopologyComp(width, height);
     topo_canvas->AddTopologyElements(topology);
 
     auto make_box_lambda = [&](size_t dimx, size_t dimy, std::string title, std::string text) {
