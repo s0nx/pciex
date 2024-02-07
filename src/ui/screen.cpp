@@ -269,13 +269,22 @@ bool PCITopoUIComp::OnEvent(ftxui::Event event)
     auto area = canvas_.get_visible_area();
 
     if (event.is_mouse()) {
-        logger.info("PCITopoUIComp -> mouse event");
+        //logger.info("PCITopoUIComp -> mouse event: shift {} meta {} ctrl {}",
+        //            event.mouse().shift, event.mouse().meta, event.mouse().control);
 
-        if (event.mouse().button == ftxui::Mouse::WheelDown)
-            area->shift(CnvShiftDir::DOWN);
+        if (event.mouse().button == ftxui::Mouse::WheelDown) {
+            if (event.mouse().shift)
+                area->shift(CnvShiftDir::RIGHT);
+            else
+                area->shift(CnvShiftDir::DOWN);
+        }
 
-        if (event.mouse().button == ftxui::Mouse::WheelUp)
-            area->shift(CnvShiftDir::UP);
+        if (event.mouse().button == ftxui::Mouse::WheelUp) {
+            if (event.mouse().shift)
+                area->shift(CnvShiftDir::LEFT);
+            else
+                area->shift(CnvShiftDir::UP);
+        }
 
         if (event.mouse().button == ftxui::Mouse::Left)
             block_map.SelectDevice(event.mouse().x + area->off_x_,
@@ -286,7 +295,7 @@ bool PCITopoUIComp::OnEvent(ftxui::Event event)
     }
 
     if (event.is_character()) {
-        logger.info("PCITopoUIComp -> char event");
+        //logger.info("PCITopoUIComp -> char event");
 
         switch (event.character()[0]) {
         case 'j':
