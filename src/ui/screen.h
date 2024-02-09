@@ -31,15 +31,12 @@ enum class CnvShiftDir
 
 struct CanvasVisibleArea
 {
-    int x_max_;
-    int y_max_;
-    int off_x_;
-    int off_y_;
+    int x_max_ {0};
+    int y_max_ {0};
+    int off_x_ {0};
+    int off_y_ {0};
 
-    CanvasVisibleArea(int x_max, int y_max)
-        : x_max_(x_max), y_max_(y_max), off_x_(0), off_y_(0) {}
-
-    void shift(CnvShiftDir dir);
+    void shift(CnvShiftDir dir, ftxui::Box &);
 };
 
 const auto NoStyle = [](ftxui::Pixel &){};
@@ -61,7 +58,7 @@ class ScrollableCanvas : public ftxui::Canvas
 public:
     ScrollableCanvas() = delete;
     ScrollableCanvas(int width, int height)
-        : ftxui::Canvas(width, height), area_(width, height) {}
+        : ftxui::Canvas(width, height) {}
 
     // draw a simple box
     void DrawBoxLine(ShapeDesc desc, const ftxui::Color &color);
@@ -78,7 +75,14 @@ public:
 
     int x_off() const { return area_.off_x_; }
     int y_off() const { return area_.off_y_; }
-    CanvasVisibleArea *get_visible_area() { return &area_; }
+
+    // Set max [x, y] values in pixels
+    void VisibleAreaSetMax(const uint16_t x_max, const uint16_t y_max) noexcept
+    {
+        area_.x_max_ = x_max;
+        area_.y_max_ = y_max;
+    }
+    CanvasVisibleArea *GetVisibleAreaDesc() { return &area_; }
 
 private:
     CanvasVisibleArea area_;
@@ -151,8 +155,8 @@ public:
         const int y_max = std::min(c.height() / 4, box_.y_max - box_.y_min + 1);
         const int x_max = std::min(c.width() / 2, box_.x_max - box_.x_min + 1);
 
-        //logger.info("CANVAS RENDER: c.h {} c.w {}; BOX -> y_max {} y_min {} x_max {} x_min {}",
-        //            c.height(), c.width(), box_.y_max, box_.y_min, box_.x_max, box_.x_min);
+        //logger.info("CANVAS RENDER: BOX -> y_max {} y_min {} x_max {} x_min {}",
+        //            box_.y_max, box_.y_min, box_.x_max, box_.x_min);
         //logger.info("Coff: X {} - Y {}", c.x_off(), c.y_off());
         //logger.info("CR: screen.stencil -> y_max {} y_min {} x_max {} x_min {}",
         //            screen.stencil.y_max, screen.stencil.y_min,
@@ -219,6 +223,7 @@ public:
 private:
     std::vector<std::shared_ptr<CanvasElementBase>> canvas_elems_;
     void DrawElements() noexcept;
+    int max_width_ {0};
 
     std::pair<PointDesc, PointDesc>
     AddDevice(std::shared_ptr<pci::PciDevBase> dev, uint16_t x, uint16_t *y);

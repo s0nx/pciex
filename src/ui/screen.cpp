@@ -5,24 +5,47 @@
 
 namespace ui {
 
-void CanvasVisibleArea::shift(CnvShiftDir dir)
+void CanvasVisibleArea::shift(CnvShiftDir dir, ftxui::Box &box)
 {
     switch (dir) {
         case CnvShiftDir::UP:
             if (off_y_ > 0)
                 off_y_ -= 1;
             break;
-        case CnvShiftDir::DOWN:
-            if (off_y_ != ((y_max_ + 3) / 4 - 80))
-                off_y_ += 1;
-            break;
-        case CnvShiftDir::RIGHT:
-            if (off_x_ != ((x_max_ + 2) / 2 - 80))
-                off_x_ += 1;
-            break;
         case CnvShiftDir::LEFT:
             if (off_x_ > 0)
                 off_x_ -= 1;
+            break;
+        case CnvShiftDir::DOWN:
+            if (box.y_max >= y_max_) {
+                off_y_ = 0;
+                return;
+            }
+
+            if (off_y_ + box.y_max > y_max_) {
+                off_y_ = y_max_ - box.y_max;
+                return;
+            }
+
+            if (off_y_ + box.y_max < y_max_) {
+                off_y_ += 1;
+            }
+
+            break;
+        case CnvShiftDir::RIGHT:
+            if (box.x_max >= x_max_) {
+                off_x_ = 0;
+                return;
+            }
+
+            if (off_x_ + box.x_max > x_max_) {
+                off_x_ = x_max_ - box.x_max;
+                return;
+            }
+
+            if (off_x_ + box.x_max < x_max_) {
+                off_x_ += 1;
+            }
             break;
         default:
             return;
@@ -252,7 +275,7 @@ ftxui::Element PCITopoUIComp::Render()
                       ftxui::nothing;
 
     return scrollable_canvas(canvas_) |
-           focus_mgmt | ftxui::size(ftxui::WIDTH, ftxui::LESS_THAN, 80) |
+           focus_mgmt | ftxui::size(ftxui::WIDTH, ftxui::LESS_THAN, max_width_) |
            ftxui::reflect(box_);
 }
 
@@ -266,7 +289,7 @@ bool PCITopoUIComp::OnEvent(ftxui::Event event)
     if (!hovered_)
         return false;
 
-    auto area = canvas_.get_visible_area();
+    auto area = canvas_.GetVisibleAreaDesc();
 
     if (event.is_mouse()) {
         //logger.info("PCITopoUIComp -> mouse event: shift {} meta {} ctrl {}",
@@ -274,16 +297,16 @@ bool PCITopoUIComp::OnEvent(ftxui::Event event)
 
         if (event.mouse().button == ftxui::Mouse::WheelDown) {
             if (event.mouse().shift)
-                area->shift(CnvShiftDir::RIGHT);
+                area->shift(CnvShiftDir::RIGHT, box_);
             else
-                area->shift(CnvShiftDir::DOWN);
+                area->shift(CnvShiftDir::DOWN, box_);
         }
 
         if (event.mouse().button == ftxui::Mouse::WheelUp) {
             if (event.mouse().shift)
-                area->shift(CnvShiftDir::LEFT);
+                area->shift(CnvShiftDir::LEFT, box_);
             else
-                area->shift(CnvShiftDir::UP);
+                area->shift(CnvShiftDir::UP, box_);
         }
 
         if (event.mouse().button == ftxui::Mouse::Left)
@@ -299,16 +322,16 @@ bool PCITopoUIComp::OnEvent(ftxui::Event event)
 
         switch (event.character()[0]) {
         case 'j':
-            area->shift(CnvShiftDir::DOWN);
+            area->shift(CnvShiftDir::DOWN, box_);
             break;
         case 'k':
-            area->shift(CnvShiftDir::UP);
+            area->shift(CnvShiftDir::UP, box_);
             break;
         case 'h':
-            area->shift(CnvShiftDir::LEFT);
+            area->shift(CnvShiftDir::LEFT, box_);
             break;
         case 'l':
-            area->shift(CnvShiftDir::RIGHT);
+            area->shift(CnvShiftDir::RIGHT, box_);
             break;
         default:
             break;
@@ -329,6 +352,8 @@ void PCITopoUIComp::AddTopologyElements(const pci::PCITopologyCtx &ctx)
         }
     }
 
+    max_width_ = (max_width_ + 4) / sym_width;
+    canvas_.VisibleAreaSetMax(max_width_, canvas_.height() / 4);
     DrawElements();
 }
 
@@ -347,6 +372,12 @@ PCITopoUIComp::AddDevice(std::shared_ptr<pci::PciDevBase> dev, uint16_t x, uint1
     *y += device->GetHeight();
     if (!block_map.Insert(device))
         logger.warn("Failed to add {} device to block tracking map", dev->dev_id_str_);
+
+    // figure out max width of useful data on canvas
+    auto dev_xpos = std::get<0>(device->points_);
+    auto dev_width = std::get<2>(device->points_);
+    if ((dev_xpos + dev_width) > max_width_)
+        max_width_ = dev_xpos + dev_width;
 
     canvas_elems_.push_back(std::move(device));
     return conn_pos_pair;
