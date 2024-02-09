@@ -106,7 +106,7 @@ void CanvasElemConnector::Draw(ScrollableCanvas &canvas)
     }
 }
 
-CanvasElemPCIDev::CanvasElemPCIDev(std::shared_ptr<pci::PciDevBase> dev,
+CanvasElemPCIDev::CanvasElemPCIDev(std::shared_ptr<pci::PciDevBase> dev, ElemReprMode repr_mode,
                                    uint16_t x, uint16_t y)
     : dev_(dev), selected_(false)
 {
@@ -118,18 +118,20 @@ CanvasElemPCIDev::CanvasElemPCIDev(std::shared_ptr<pci::PciDevBase> dev,
     max_hlen = bdf_id_str.length();
     text_data_.push_back(std::move(bdf_id_str));
 
-    if (!dev->ids_names_[pci::VENDOR].empty()) {
-        auto vendor_name = fmt::format("{}", dev->ids_names_[pci::VENDOR]);
-        if (vendor_name.length() > max_hlen)
-            max_hlen = vendor_name.length();
-        text_data_.push_back(std::move(vendor_name));
-    }
+    if (repr_mode == ElemReprMode::Verbose) {
+        if (!dev->ids_names_[pci::VENDOR].empty()) {
+            auto vendor_name = fmt::format("{}", dev->ids_names_[pci::VENDOR]);
+            if (vendor_name.length() > max_hlen)
+                max_hlen = vendor_name.length();
+            text_data_.push_back(std::move(vendor_name));
+        }
 
-    if (!dev->ids_names_[pci::DEVICE].empty()) {
-        auto device_name = fmt::format("{}", dev->ids_names_[pci::DEVICE]);
-        if (device_name.length() > max_hlen)
-            max_hlen = device_name.length();
-        text_data_.push_back(std::move(device_name));
+        if (!dev->ids_names_[pci::DEVICE].empty()) {
+            auto device_name = fmt::format("{}", dev->ids_names_[pci::DEVICE]);
+            if (device_name.length() > max_hlen)
+                max_hlen = device_name.length();
+            text_data_.push_back(std::move(device_name));
+        }
     }
 
     // symbol width is 2 pixels + 2 pixel on both sides
@@ -264,6 +266,12 @@ void CanvasDevBlockMap::SelectDevice(const uint16_t mouse_x, const uint16_t mous
     }
 }
 
+void CanvasDevBlockMap::Reset()
+{
+    selected_dev_.reset();
+    blocks_y_dim_.clear();
+}
+
 // UI topology element impl
 
 ftxui::Element PCITopoUIComp::Render()
@@ -310,7 +318,7 @@ bool PCITopoUIComp::OnEvent(ftxui::Event event)
         }
 
         if (event.mouse().button == ftxui::Mouse::Left)
-            block_map.SelectDevice(event.mouse().x + area->off_x_,
+            block_map_.SelectDevice(event.mouse().x + area->off_x_,
                                    event.mouse().y + area->off_y_,
                                    canvas_);
 
@@ -321,6 +329,7 @@ bool PCITopoUIComp::OnEvent(ftxui::Event event)
         //logger.info("PCITopoUIComp -> char event");
 
         switch (event.character()[0]) {
+        // scrolling
         case 'j':
             area->shift(CnvShiftDir::DOWN, box_);
             break;
@@ -333,6 +342,13 @@ bool PCITopoUIComp::OnEvent(ftxui::Event event)
         case 'l':
             area->shift(CnvShiftDir::RIGHT, box_);
             break;
+        // change canvas elems representation mode
+        case 'c':
+            SwitchDrawingMode(ElemReprMode::Compact);
+            break;
+        case 'v':
+            SwitchDrawingMode(ElemReprMode::Verbose);
+            break;
         default:
             break;
         }
@@ -342,13 +358,13 @@ bool PCITopoUIComp::OnEvent(ftxui::Event event)
     return false;
 }
 
-void PCITopoUIComp::AddTopologyElements(const pci::PCITopologyCtx &ctx)
+void PCITopoUIComp::AddTopologyElements()
 {
-    uint16_t x = 4, y = 4;
-    for (const auto &bus : ctx.buses_) {
+    uint16_t x = 2, y = 4;
+    for (const auto &bus : topo_ctx_.buses_) {
         if (bus.second.is_root_) {
             auto conn_pos = AddRootBus(bus.second, &x, &y);
-            AddBusDevices(bus.second, ctx.buses_, conn_pos, x + child_elem_xoff, &y);
+            AddBusDevices(bus.second, topo_ctx_.buses_, conn_pos, x + child_elem_xoff, &y);
         }
     }
 
@@ -366,11 +382,11 @@ void PCITopoUIComp::DrawElements() noexcept
 std::pair<PointDesc, PointDesc>
 PCITopoUIComp::AddDevice(std::shared_ptr<pci::PciDevBase> dev, uint16_t x, uint16_t *y)
 {
-    auto device = std::make_shared<CanvasElemPCIDev>(dev, x, *y);
+    auto device = std::make_shared<CanvasElemPCIDev>(dev, current_drawing_mode_, x, *y);
     std::pair<PointDesc, PointDesc> conn_pos_pair {device->GetConnPosChild(),
                                                    device->GetConnPosParent()};
     *y += device->GetHeight();
-    if (!block_map.Insert(device))
+    if (!block_map_.Insert(device))
         logger.warn("Failed to add {} device to block tracking map", dev->dev_id_str_);
 
     // figure out max width of useful data on canvas
@@ -427,13 +443,33 @@ void PCITopoUIComp::AddBusDevices(const pci::PCIBus &current_bus,
     }
 }
 
+void PCITopoUIComp::SwitchDrawingMode(ElemReprMode new_mode)
+{
+    if (current_drawing_mode_ == new_mode)
+        return;
+
+    current_drawing_mode_ = new_mode;
+
+    block_map_.Reset();
+    canvas_elems_.clear();
+    max_width_ = 0;
+
+    auto [w, h] = GetCanvasSizeEstimate(topo_ctx_, current_drawing_mode_);
+    canvas_ = ScrollableCanvas(w, h);
+
+    AddTopologyElements();
+}
+
+// Returns approximate canvas size based on the actual topology
+// X, Y is in dots
 std::pair<uint16_t, uint16_t>
-GetCanvasSizeEstimate(const pci::PCITopologyCtx &ctx) noexcept
+GetCanvasSizeEstimate(const pci::PCITopologyCtx &ctx, ElemReprMode mode) noexcept
 {
     uint16_t x_size = 0, y_size = 0;
     uint16_t root_bus_elem_height = 3 * sym_height;
-    uint16_t dev_elem_height = 5 * sym_height;
-
+    uint16_t dev_elem_height = mode == ElemReprMode::Verbose ?
+                                       5 * sym_height :
+                                       3 * sym_height;
 
     auto root_bus_num = std::ranges::count_if(ctx.buses_, [](auto bus) { return bus.second.is_root_; });
     y_size += root_bus_num * root_bus_elem_height;

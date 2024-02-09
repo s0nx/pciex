@@ -88,6 +88,12 @@ private:
     CanvasVisibleArea area_;
 };
 
+enum class ElemReprMode
+{
+    Compact,
+    Verbose
+};
+
 struct CanvasElementBase
 {
     virtual void Draw(ScrollableCanvas &canvas) = 0;
@@ -115,7 +121,8 @@ struct CanvasElemPCIDev : public CanvasElementBase
     bool                             selected_ {false};
 
     CanvasElemPCIDev() = delete;
-    CanvasElemPCIDev(std::shared_ptr<pci::PciDevBase> dev, uint16_t x, uint16_t y);
+    CanvasElemPCIDev(std::shared_ptr<pci::PciDevBase> dev, ElemReprMode repr_mode,
+                     uint16_t x, uint16_t y);
 
     uint16_t GetHeight() noexcept;
     PointDesc GetConnPosParent() noexcept;
@@ -203,6 +210,7 @@ struct CanvasDevBlockMap
 
     bool Insert(std::shared_ptr<CanvasElemPCIDev> dev);
     void SelectDevice(const uint16_t mouse_x, const uint16_t mouse_y, ScrollableCanvas &canvas);
+    void Reset();
 };
 
 constexpr uint16_t child_elem_xoff = 16;
@@ -211,42 +219,49 @@ class PCITopoUIComp : public ftxui::ComponentBase
 {
 public:
     PCITopoUIComp() = delete;
-    PCITopoUIComp(int width, int height) :
-        ftxui::ComponentBase(), canvas_(width, height) {}
+    PCITopoUIComp(int width, int height, const pci::PCITopologyCtx &ctx) :
+        ftxui::ComponentBase(),
+        topo_ctx_(ctx),
+        current_drawing_mode_(ElemReprMode::Compact),
+        canvas_(width, height)
+    {
+        AddTopologyElements();
+    }
 
     ftxui::Element Render() override;
 
     bool OnEvent(ftxui::Event event) override final;
     bool Focusable() const final { return true; }
-    void AddTopologyElements(const pci::PCITopologyCtx &ctx);
 
 private:
     std::vector<std::shared_ptr<CanvasElementBase>> canvas_elems_;
-    void DrawElements() noexcept;
-    int max_width_ {0};
+    int                                             max_width_ {0};
+    const pci::PCITopologyCtx                       &topo_ctx_;
+    ElemReprMode                                    current_drawing_mode_;
+    CanvasDevBlockMap                               block_map_;
+    bool                                            hovered_ { false };
+    ftxui::Box                                      box_;
+    ScrollableCanvas                                canvas_;
 
+    void DrawElements() noexcept;
+    void AddTopologyElements();
     std::pair<PointDesc, PointDesc>
     AddDevice(std::shared_ptr<pci::PciDevBase> dev, uint16_t x, uint16_t *y);
     PointDesc
     AddRootBus(const pci::PCIBus &bus, uint16_t *x, uint16_t *y);
-
     void AddBusDevices(const pci::PCIBus &current_bus,
                        const std::map<uint16_t, pci::PCIBus> &bus_map,
                        PointDesc parent_conn_pos,
                        uint16_t x_off, uint16_t *y_off);
-
-    CanvasDevBlockMap block_map;
-    bool hovered_ { false };
-    ftxui::Box box_;
-    ScrollableCanvas canvas_;
+    void SwitchDrawingMode(ElemReprMode);
 };
 
-inline auto MakeTopologyComp(int width, int height)
+inline auto MakeTopologyComp(int width, int height, const pci::PCITopologyCtx &ctx)
 {
-    return ftxui::Make<PCITopoUIComp>(width, height);
+    return ftxui::Make<PCITopoUIComp>(width, height, ctx);
 }
 
 std::pair<uint16_t, uint16_t>
-GetCanvasSizeEstimate(const pci::PCITopologyCtx &ctx) noexcept;
+GetCanvasSizeEstimate(const pci::PCITopologyCtx &ctx, ElemReprMode mode) noexcept;
 
 } // namespace ui

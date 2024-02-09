@@ -89,10 +89,8 @@ int main()
     //    }
     //}
 
-    auto [width, height] = ui::GetCanvasSizeEstimate(topology);
-
-    auto topo_canvas = ui::MakeTopologyComp(width, height);
-    topo_canvas->AddTopologyElements(topology);
+    auto [width, height] = ui::GetCanvasSizeEstimate(topology, ui::ElemReprMode::Compact);
+    auto topo_canvas = ui::MakeTopologyComp(width, height, topology);
 
     auto make_box_lambda = [&](size_t dimx, size_t dimy, std::string title, std::string text) {
         auto elem = ftxui::window(ftxui::text(title) | ftxui::hcenter | ftxui::bold,
@@ -124,16 +122,26 @@ int main()
         }) | ftxui::Maybe([&] { return show_info == true; })
     });
 
-    auto container = ftxui::Container::Horizontal({
-        topo_canvas,
-        ftxui::Renderer([] { return ftxui::separator(); }),
-        ftxui::Checkbox("test checkbox", &show_info),
-        ftxui::Renderer([] { return ftxui::separator(); }),
-        box_container
+    int right_size = 60;
+
+    //auto container = ftxui::Container::Horizontal({
+    //    topo_canvas,
+    //    ftxui::Renderer([] { return ftxui::separator(); }),
+    //    ftxui::Checkbox("test checkbox", &show_info),
+    //    ftxui::Renderer([] { return ftxui::separator(); }),
+    //    box_container
+    //});
+
+    auto container_split = ftxui::ResizableSplit({
+        .main = topo_canvas,
+        .back = box_container,
+        .direction = ftxui::Direction::Left,
+        .main_size = &right_size,
+        .separator_func = [] { return ftxui::separatorDouble(); }
     });
 
     auto screen = ftxui::ScreenInteractive::Fullscreen();
-    screen.Loop(container);
+    screen.Loop(container_split);
 
     return 0;
 
