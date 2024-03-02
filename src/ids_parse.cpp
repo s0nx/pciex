@@ -139,22 +139,60 @@ std::string_view PciIdParser::subsys_name_lookup(const uint16_t vid, const uint1
         return std::string_view{};
     }
 
-    auto subsys_str = fmt::format("\t\t{:04x} {:04x}", subsys_vid, subsys_id);
-    auto subsys_str_pos = db_str_.find(subsys_str, cached_dev_desc->second.device_db_off_);
-    if (subsys_str_pos == std::string_view::npos)
+    auto next_subsys_line_spos = cached_dev_desc->second.device_db_off_;
+    auto next_subsys_line_epos = db_str_.find('\n', next_subsys_line_spos);
+    if (next_subsys_line_epos == std::string_view::npos)
     {
-        logger.info("Could not find subsystem name for subsys VID/subsys ID {} : {}",
+        logger.info("Could not find subsystem name for subsys VID/subsys ID {} : {}. EOF",
                     subsys_vid, subsys_id);
         return std::string_view{};
     }
 
-    // two '\t' + subsys VID len + WS + subsys ID + two WS
-    constexpr off_t off = 2 + 4 + 1 + 4 + 2;
-    auto subsys_name_spos = subsys_str_pos + off;
-    auto subsys_name_epos = db_str_.find('\n', subsys_name_spos);
+    logger.info("SUBSYS LOOP START, spos {} epos {}", next_subsys_line_spos, next_subsys_line_epos);
 
-    auto subsys_name_str = db_str_.substr(subsys_name_spos, subsys_name_epos - subsys_name_spos);
-    return subsys_name_str;
+    auto subsys_name_spos = std::string_view::npos;
+    auto subsys_name_epos = std::string_view::npos;
+    auto subsys_str = fmt::format("{:04x} {:04x}", subsys_vid, subsys_id);
+
+    while (true) {
+        // extract next line and check it
+        auto cur_substr = db_str_.substr(next_subsys_line_spos,
+                                         next_subsys_line_epos - next_subsys_line_spos);
+        logger.info("SUBSYS LOOP ITER, spos {} len {}", next_subsys_line_spos,
+                                next_subsys_line_epos - next_subsys_line_spos);
+        if (cur_substr[0] == '\t' && cur_substr[1] == '\t') {
+            // This line starts with \t\t, so search for subsystem name in it
+            auto subsys_id_pair_pos = cur_substr.find(subsys_str);
+            if (subsys_id_pair_pos == std::string_view::npos) {
+                // not found, prepair next line
+                next_subsys_line_spos = next_subsys_line_epos + 1;
+                if ((size_t)next_subsys_line_spos >= db_str_.length())
+                    break;
+                next_subsys_line_epos = db_str_.find('\n', next_subsys_line_spos);
+            } else {
+                // found subsystem name
+                subsys_name_spos = next_subsys_line_spos + 2 + 4 + 1 + 4 + 2;
+                subsys_name_epos = db_str_.find('\n', subsys_name_spos);
+                logger.info("SUBSYS NAME FOUND, spos {} epos {}", subsys_name_spos,
+                                                                    subsys_name_epos);
+                break;
+            }
+        } else {
+            // current line does not start with \t\t, so stop searching
+            break;
+        }
+    }
+
+    if (subsys_name_spos != std::string_view::npos &&
+            subsys_name_epos != std::string_view::npos) {
+        auto subsys_name_str = db_str_.substr(subsys_name_spos,
+                                              subsys_name_epos - subsys_name_spos);
+        return subsys_name_str;
+    } else {
+        logger.info("Could not find subsystem name for subsys VID/subsys ID {} : {}",
+                    subsys_vid, subsys_id);
+        return std::string_view{};
+    }
 }
 
 ClassCodeInfo PciIdParser::class_info_lookup(const uint32_t ccode)
