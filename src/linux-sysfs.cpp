@@ -57,8 +57,29 @@ cfg_space_desc get_cfg_space_buf(const fs::path &sysfs_dev_entry)
     return std::make_pair(std::move(ptr), static_cast<int32_t>(cfg_size));
 }
 
+
+// It's not possible to determine the size of the resource requested by
+// device after the address has been written into the BAR.
+// It should either be kept during configuration or new configuration should
+// be perfromed by writting all 1's to the register and reading back the value.
+// Sysfs 'resource' file is used to get the size. It is also used to corrrectly interpret
+// the BAR contents later.
 std::vector<res_desc> get_resources(const fs::path &sysfs_dev_entry)
 {
+    // Depending on device type and kernel configuration, namely CONFIG_PCI_IOV,
+    // amount of lines in 'resource' file might differ.
+    // If kernel has been configured with 'PCI IOV' support there would either
+    // 13 (for Type 0 device) or 17 (for Type 1 device) entries.
+    // With 'CONFIG_PCI_IOV' not set, there would either 7 (Type 0) or 11 (Type 1) entries.
+    //
+    //        ┌─        ┌─ [0 - 5]   - BARs resources
+    //        │  type 0 ┤  [  6  ]   - expansion ROM resource
+    //        │         └─ [7 - 12]  - IOV resources (CONFIG_PCI_IOV enabled)
+    // type 1 ┤            [13] (7)  - IO behind bridge
+    //        │            [14] (8)  - memory behind bridge
+    //        │            [15] (9)  - prefetchable memory behind bridge
+    //        └─           [16] (10) - < empty >
+
     auto resource = fs::directory_entry(sysfs_dev_entry / "resource");
     if (!resource.exists()) {
         logger.warn("'{}' doesn't exist", resource.path().c_str());

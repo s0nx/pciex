@@ -23,8 +23,9 @@ void PCITopologyCtx::populate()
                                            dev_type, dev_path, std::move(cfg_buf));
         pci_dev->parse_capabilities();
         pci_dev->dump_capabilities();
-        pci_dev->parse_bars();
-        pci_dev->parse_ids(iparser);
+        pci_dev->GetResources();
+        pci_dev->ParseBars();
+        pci_dev->ParseIDs(iparser);
         auto drv_name = sysfs::get_driver(dev_path);
         logger.info("{} driver: {}", pci_dev->dev_id_str_,
                     drv_name.empty() ? "<none>" : drv_name);

@@ -176,7 +176,7 @@ constexpr auto Type1RegName(const Type1Cfg reg) noexcept
     case Type1Cfg::cache_line_size:
         return "Cache Line size";
     case Type1Cfg::prim_lat_timer:
-        return "Primary Latency Timer";
+        return "Prim Lat Timer";
     case Type1Cfg::header_type:
         return "Header Type";
     case Type1Cfg::bist:
@@ -186,13 +186,13 @@ constexpr auto Type1RegName(const Type1Cfg reg) noexcept
     case Type1Cfg::bar1:
         return "BAR 1";
     case Type1Cfg::prim_bus_num:
-        return "Primary Bus Number";
+        return "Prim Bus Number";
     case Type1Cfg::sec_bus_num:
-        return "Secondary Bus Number";
+        return "Sec Bus Number";
     case Type1Cfg::sub_bus_num:
-        return "Subordinate Bus Number";
+        return "Sub Bus Number";
     case Type1Cfg::sec_lat_timer:
-        return "Secondary Latency Timer";
+        return "Sec Lat Timer";
     case Type1Cfg::io_base:
         return "I/O Base";
     case Type1Cfg::io_limit:
@@ -200,7 +200,7 @@ constexpr auto Type1RegName(const Type1Cfg reg) noexcept
     case Type1Cfg::sec_status:
         return "Secondary Status";
     case Type1Cfg::mem_base:
-        return "Memoru Base";
+        return "Memory Base";
     case Type1Cfg::mem_limit:
         return "Memory Limit";
     case Type1Cfg::pref_mem_base:
@@ -302,7 +302,8 @@ static_assert(sizeof(RegLatTimer) == 1);
 
 struct RegHdrType
 {
-    uint8_t type;
+    uint8_t hdr_layout : 7;
+    uint8_t     is_mfd : 1;
 } __attribute__((packed));
 static_assert(sizeof(RegHdrType) == 1);
 
@@ -446,9 +447,10 @@ static_assert(sizeof(RegMemBL) == 2);
 
 struct RegPrefMemBL
 {
-    uint32_t addr;
+    uint16_t  cap : 4;
+    uint16_t addr : 12;
 } __attribute__((packed));
-static_assert(sizeof(RegPrefMemBL) == 4);
+static_assert(sizeof(RegPrefMemBL) == 2);
 
 struct RegIOUpperBL
 {

@@ -157,15 +157,43 @@ void PciDevBase::dump_capabilities() noexcept
     }
 }
 
-void PciDevBase::parse_bars() noexcept
+void PciDevBase::GetResources() noexcept
 {
     auto dev_resources = sysfs::get_resources(sys_path_);
     sysfs::dump_resources(dev_resources, dev_id_str_);
-
-    // TODO: parse obtained resources
+    resources_ = std::move(dev_resources);
 }
 
-void PciDevBase::parse_ids(PciIdParser &parser)
+void PciDevBase::ParseBars() noexcept
+{
+    auto num_bars = (type_ == pci_dev_type::TYPE0) ? 6 : 2;
+    for (int i = 0; i < num_bars; i++) {
+        auto [start, end, flags] = resources_[i];
+
+        if (flags == 0) {
+            assert(start == 0 && end == 0);
+
+            bar_res_[i].type_ = ResourceType::EMPTY;
+            continue;
+        } else {
+            if (flags & PCIResIO)
+                bar_res_[i].type_ = ResourceType::IO;
+            if (flags & PCIResMEM)
+                bar_res_[i].type_ = ResourceType::MEMORY;
+
+            if (flags & PCIResPrefetch)
+                bar_res_[i].is_prefetchable_ = true;
+
+            if (flags & PCIResMem64)
+                bar_res_[i].is_64bit_ = true;
+        }
+
+        bar_res_[i].phys_addr_ = start;
+        bar_res_[i].len_ = end - start + 1;
+    }
+}
+
+void PciDevBase::ParseIDs(PciIdParser &parser)
 {
     auto vid    = get_vendor_id();
     auto dev_id = get_device_id();
@@ -306,6 +334,23 @@ uint32_t PciType0Dev::get_min_gnt() const noexcept
 uint32_t PciType0Dev::get_max_lat() const noexcept
 {
     return get_reg_compat(Type0Cfg::max_lat, t0_reg_map);
+}
+
+void PciType0Dev::ParseIDs(PciIdParser &parser)
+{
+    PciDevBase::ParseIDs(parser);
+
+    auto vid           = get_vendor_id();
+    auto dev_id        = get_device_id();
+    auto subsys_vid    = get_subsys_vid();
+    auto subsys_dev_id = get_subsys_dev_id();
+
+    // Subsystem name is identified by a pair of <Subsystem Vendor ID, Subsystem Device ID>
+    // If nothing has been found, subsystem name would be subsystem vendor ID name.
+    ids_names_[SUBSYS_NAME] = parser.subsys_name_lookup(vid, dev_id, subsys_vid, subsys_dev_id);
+
+    if (ids_names_[SUBSYS_NAME].empty())
+        ids_names_[SUBSYS_VENDOR] = parser.vendor_name_lookup(subsys_vid);
 }
 
 void PciType0Dev::print_data() const noexcept {

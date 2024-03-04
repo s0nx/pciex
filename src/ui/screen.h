@@ -5,6 +5,8 @@
 
 #include <map>
 #include <memory>
+#include <variant>
+#include <type_traits>
 
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/screen.hpp>
@@ -232,6 +234,10 @@ public:
 
     bool OnEvent(ftxui::Event event) override final;
     bool Focusable() const final { return true; }
+    std::shared_ptr<pci::PciDevBase> GetSelectedDev() noexcept
+    {
+        return block_map_.selected_dev_->dev_;
+    }
 
 private:
     std::vector<std::shared_ptr<CanvasElementBase>> canvas_elems_;
@@ -263,5 +269,127 @@ inline auto MakeTopologyComp(int width, int height, const pci::PCITopologyCtx &c
 
 std::pair<uint16_t, uint16_t>
 GetCanvasSizeEstimate(const pci::PCITopologyCtx &ctx, ElemReprMode mode) noexcept;
+
+// Custom button style is necessary to make the button flexible
+// within the container
+// TODO: configurable colors
+inline ftxui::ButtonOption RegButtonDefaultOption() {
+    auto option = ftxui::ButtonOption::Animated(ftxui::Color::Grey15, ftxui::Color::Cornsilk1);
+    option.transform = [](const ftxui::EntryState& s) {
+        auto element = ftxui::text(s.label);
+        if (s.focused) {
+            element |= ftxui::bold;
+        }
+
+        element |= ftxui::center;
+        element |= ftxui::border;
+        element |= ftxui::flex;
+
+        if (s.state)
+            element |= ftxui::bgcolor(ftxui::Color::LightSalmon1) |
+                       ftxui::color(ftxui::Color::Grey15);
+        return element;
+    };
+    return option;
+}
+
+// XXX: This is essentialy the same as ftxui::ButtonBase with the only
+// difference of being able to track pressed/released state the same way ftxui::Checkbox does.
+// TODO: merge to mainline
+class PushPullButton : public ftxui::ComponentBase, public ftxui::ButtonOption
+{
+public:
+    explicit PushPullButton(ButtonOption option) : ButtonOption(std::move(option)) {}
+
+    ftxui::Element Render() override;
+
+    ftxui::Decorator AnimatedColorStyle();
+    void SetAnimationTarget(float target);
+    void OnAnimation(ftxui::animation::Params& p) override;
+    void OnClick();
+    bool OnEvent(ftxui::Event event) override;
+    bool OnMouseEvent(ftxui::Event event);
+    bool Focusable() const final { return true; }
+
+private:
+    bool is_pressed_ = false;
+    bool mouse_hover_ = false;
+    ftxui::Box box_;
+    ftxui::ButtonOption option_;
+    float animation_background_ = 0;
+    float animation_foreground_ = 0;
+    ftxui::animation::Animator animator_background_ =
+      ftxui::animation::Animator(&animation_background_);
+    ftxui::animation::Animator animator_foreground_ =
+      ftxui::animation::Animator(&animation_foreground_);
+};
+
+inline ftxui::Component PPButton(ftxui::ConstStringRef label,
+                                 std::function<void()> on_click,
+                                 ftxui::ButtonOption option)
+{
+  option.label = label;
+  option.on_click = std::move(on_click);
+  return ftxui::Make<PushPullButton>(std::move(option));
+}
+
+// TODO: It seems not to be easy to add scrolling to the component made of a bunch
+// of static DOM elements, e.g:
+//
+// auto vc = ftxui::Container::Vertical({});
+// auto comp = ftxui::Renderer([] { return ftxui::text("test"); });
+// vc->Add(comp)
+// . . .
+// auto vc_renderer = ftxui::Renderer(vc, [&] {
+//    return vc->Render() | ftxui::vscroll_indicator |
+//           ftxui::hscroll_indicator | ftxui::frame;
+// });
+//
+// This component seems to solve this problem, but at the cost of losing interactivity.
+// See: https://github.com/ArthurSonzogni/FTXUI/discussions/657
+// https://github.com/ArthurSonzogni/git-tui/blob/master/src/scroller.cpp
+class ScrollableComp : public ftxui::ComponentBase
+{
+public:
+    ScrollableComp(ftxui::Component child) { Add(child); }
+
+private:
+    ftxui::Element Render() final;
+    bool OnEvent(ftxui::Event event) final;
+    bool Focusable() const final { return true;  }
+
+    int selected_ {0};
+    int     size_ {0};
+    ftxui::Box box_;
+};
+
+
+// Holds resizable split component representing currently selected device.
+// ┌───────────────────────────┐
+// │ device registers overview │
+// ├───────────────────────────┤
+// │  registers detailed info  │
+// └───────────────────────────┘
+struct PCIRegsComponent : ftxui::ComponentBase
+{
+    std::shared_ptr<PCITopoUIComp>   topology_component_;
+    std::shared_ptr<pci::PciDevBase> cur_dev_;
+    ftxui::Component                 upper_split_comp_;
+    ftxui::Component                 lower_split_comp_;
+    ftxui::Component                 split_comp_;
+    std::vector<uint8_t>             vis_state_;
+    int                              split_off_ {40};
+
+    ftxui::Element Render() override;
+    bool Focusable() const final { return true; }
+
+    PCIRegsComponent(std::shared_ptr<PCITopoUIComp> topo_comp)
+        : ftxui::ComponentBase(), topology_component_(topo_comp) {}
+
+    // XXX DEBUG
+    std::string PrintCurDevInfo() noexcept;
+    void CreateComponent();
+
+};
 
 } // namespace ui
