@@ -268,7 +268,6 @@ void CanvasDevBlockMap::SelectDevice(const uint16_t mouse_x, const uint16_t mous
 
 void CanvasDevBlockMap::Reset()
 {
-    selected_dev_.reset();
     blocks_y_dim_.clear();
 }
 
@@ -374,9 +373,20 @@ void PCITopoUIComp::AddTopologyElements()
     max_width_ = (max_width_ + 4) / sym_width;
     canvas_.VisibleAreaSetMax(max_width_, canvas_.height() / 4);
 
-    // select default element
-    block_map_.selected_dev_ = block_map_.blocks_y_dim_.begin()->second;
-    block_map_.selected_dev_->selected_ = true;
+    // select element
+    if (block_map_.selected_dev_ == nullptr) {
+        block_map_.selected_dev_ = block_map_.blocks_y_dim_.begin()->second;
+        block_map_.selected_dev_->selected_ = true;
+    } else {
+        auto cur_dev = block_map_.selected_dev_->dev_;
+        for (const auto &dev : block_map_.blocks_y_dim_) {
+            if (dev.second->dev_ == cur_dev) {
+                block_map_.selected_dev_ = dev.second;
+                block_map_.selected_dev_->selected_ = true;
+                break;
+            }
+        }
+    }
     DrawElements();
 }
 
