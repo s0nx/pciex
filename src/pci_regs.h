@@ -852,6 +852,74 @@ struct PciPMCap
 } __attribute__((packed));
 static_assert(sizeof(PciPMCap) == 0x8);
 
+struct CompatCapVendorSpec
+{
+    CompatCapHdr   hdr;          // 0x0
+    uint8_t        len;          // 0x2
+    //uint8_t      data[];       // variable length
+} __attribute__((packed));
+static_assert(sizeof(CompatCapVendorSpec) == 0x3);
+
+// MSI capability layouts
+struct RegMSIMsgCtrl
+{
+    uint16_t msi_ena                 : 1;
+    uint16_t multi_msg_capable       : 3;
+    uint16_t multi_msg_ena           : 3;
+    uint16_t addr_64_bit_capable     : 1;
+    uint16_t per_vector_mask_capable : 1;
+    uint16_t ext_msg_data_capable    : 1;
+    uint16_t ext_msg_data_ena        : 1;
+    uint16_t rsvd                    : 5;
+} __attribute__((packed));
+static_assert(sizeof(RegMSIMsgCtrl) == 0x2);
+
+struct MSI32CompatCap
+{
+    CompatCapHdr           hdr; // 0x0
+    RegMSIMsgCtrl           mc; // 0x2
+    uint32_t          msg_addr; // 0x4
+    uint16_t          msg_data; // 0x8
+    uint16_t      ext_msg_data; // 0xa
+} __attribute__((packed));
+static_assert(sizeof(MSI32CompatCap) == 0xc);
+
+struct MSI32PVMCompatCap
+{
+    CompatCapHdr           hdr; // 0x0
+    RegMSIMsgCtrl           mc; // 0x2
+    uint32_t          msg_addr; // 0x4
+    uint16_t          msg_data; // 0x8
+    uint16_t      ext_msg_data; // 0xa
+    uint32_t         mask_bits; // 0xc
+    uint32_t      pending_bits; // 0x10
+} __attribute__((packed));
+static_assert(sizeof(MSI32PVMCompatCap) == 0x14);
+
+struct MSI64CompatCap
+{
+    CompatCapHdr             hdr; // 0x0
+    RegMSIMsgCtrl             mc; // 0x2
+    uint32_t            msg_addr; // 0x4
+    uint32_t      msg_addr_upper; // 0x8
+    uint16_t            msg_data; // 0xc
+    uint16_t        ext_msg_data; // 0xe
+} __attribute__((packed));
+static_assert(sizeof(MSI64CompatCap) == 0x10);
+
+struct MSI64PVMCompatCap
+{
+    CompatCapHdr             hdr; // 0x0
+    RegMSIMsgCtrl             mc; // 0x2
+    uint32_t            msg_addr; // 0x4
+    uint32_t      msg_addr_upper; // 0x8
+    uint16_t            msg_data; // 0xc
+    uint16_t        ext_msg_data; // 0xe
+    uint32_t           mask_bits; // 0x10
+    uint32_t        pending_bits; // 0x14
+} __attribute__((packed));
+static_assert(sizeof(MSI64PVMCompatCap) == 0x18);
+
 enum class CapType
 {
     compat,

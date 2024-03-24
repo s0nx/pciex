@@ -110,6 +110,9 @@ constexpr uint32_t      PCIResMEM = 0x200;
 constexpr uint32_t PCIResPrefetch = 0x2000;
 constexpr uint32_t    PCIResMem64 = 0x100000;
 
+// <cap type: compat or ext, capability ID, version, offset within config space>
+typedef std::tuple<CapType, uint16_t, uint8_t, uint16_t> CapDesc;
+
 enum class ResourceType
 {
     MEMORY,
@@ -148,7 +151,9 @@ struct PciDevBase
 
     // Array of capabity descriptors
     // <cap type: compat or ext, capability ID, version, offset within config space>
-    std::vector<std::tuple<CapType, uint16_t, uint8_t, uint16_t>> caps_;
+    std::vector<CapDesc> caps_;
+    uint8_t compat_caps_num_;
+    uint8_t extended_caps_num_;
 
     // device resources info obtained via sysfs
     std::vector<std::tuple<uint64_t, uint64_t, uint64_t>> resources_;

@@ -3,21 +3,10 @@
 
 #pragma once
 
-#include <map>
-#include <memory>
-#include <variant>
-#include <type_traits>
-
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/screen.hpp>
-
 #include <ftxui/component/component.hpp>
-#include <ftxui/component/component_base.hpp>
-#include <ftxui/component/event.hpp>
-#include <ftxui/component/mouse.hpp>
 #include <ftxui/component/screen_interactive.hpp>
-#include <ftxui/dom/canvas.hpp>
-#include <ftxui/screen/color.hpp>
 
 #include "../pciex.h"
 
@@ -181,24 +170,6 @@ public:
     virtual const ScrollableCanvas &canvas() = 0;
 };
 
-inline ftxui::Element scrollable_canvas(ftxui::ConstRef<ScrollableCanvas> canvas)
-{
-    class Impl : public CanvasScrollNodeBase
-    {
-    public:
-        explicit Impl(ftxui::ConstRef<ScrollableCanvas> canvas) : canvas_(std::move(canvas))
-        {
-            requirement_.min_x = (canvas->width() + 1) / 2;
-            requirement_.min_y = (canvas->height() + 3) / 4;
-        }
-
-        const ScrollableCanvas &canvas() final { return *canvas_; }
-        ftxui::ConstRef<ScrollableCanvas> canvas_;
-    };
-
-    return std::make_shared<Impl>(canvas);
-}
-
 // mouse tracking stuff
 typedef std::pair<uint16_t, uint16_t> BlockSnglDimDesc;
 
@@ -230,7 +201,7 @@ public:
         AddTopologyElements();
     }
 
-    ftxui::Element Render() override;
+    ftxui::Element Render() override final;
 
     bool OnEvent(ftxui::Event event) override final;
     bool Focusable() const final { return true; }
@@ -269,29 +240,6 @@ inline auto MakeTopologyComp(int width, int height, const pci::PCITopologyCtx &c
 
 std::pair<uint16_t, uint16_t>
 GetCanvasSizeEstimate(const pci::PCITopologyCtx &ctx, ElemReprMode mode) noexcept;
-
-// Custom button style is necessary to make the button flexible
-// within the container
-// TODO: configurable colors
-inline ftxui::ButtonOption RegButtonDefaultOption() {
-    auto option = ftxui::ButtonOption::Animated(ftxui::Color::Grey15, ftxui::Color::Cornsilk1);
-    option.transform = [](const ftxui::EntryState& s) {
-        auto element = ftxui::text(s.label);
-        if (s.focused) {
-            element |= ftxui::bold;
-        }
-
-        element |= ftxui::center;
-        element |= ftxui::border;
-        element |= ftxui::flex;
-
-        if (s.state)
-            element |= ftxui::bgcolor(ftxui::Color::LightSalmon1) |
-                       ftxui::color(ftxui::Color::Grey15);
-        return element;
-    };
-    return option;
-}
 
 // XXX: This is essentialy the same as ftxui::ButtonBase with the only
 // difference of being able to track pressed/released state the same way ftxui::Checkbox does.
@@ -354,7 +302,7 @@ public:
     ScrollableComp(ftxui::Component child) { Add(child); }
 
 private:
-    ftxui::Element Render() final;
+    ftxui::Element Render() override final;
     bool OnEvent(ftxui::Event event) final;
     bool Focusable() const final { return true;  }
 
@@ -379,6 +327,7 @@ struct PCIRegsComponent : ftxui::ComponentBase
     ftxui::Component                 split_comp_;
     std::vector<uint8_t>             vis_state_;
     int                              split_off_ {40};
+    uint32_t                         interactive_elem_max_ {1024};
 
     ftxui::Element Render() override;
     bool Focusable() const final { return true; }
@@ -388,7 +337,11 @@ struct PCIRegsComponent : ftxui::ComponentBase
 
     // XXX DEBUG
     std::string PrintCurDevInfo() noexcept;
+
     void CreateComponent();
+    void FinalizeComponent();
+    void AddCompatHeaderRegs();
+    void AddCapabilities();
 
 };
 

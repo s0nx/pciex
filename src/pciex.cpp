@@ -100,7 +100,9 @@ PciDevBase::PciDevBase(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_
     cfg_type_(cfg_len),
     type_(dev_type),
     cfg_space_(std::move(cfg_buf)),
-    sys_path_(dev_path)
+    sys_path_(dev_path),
+    compat_caps_num_(0),
+    extended_caps_num_(0)
     {}
 
 void PciDevBase::parse_capabilities()
@@ -122,6 +124,7 @@ void PciDevBase::parse_capabilities()
                 is_pcie_ = true;
 
             caps_.emplace_back(CapType::compat, compat_cap->cap_id, 0, next_cap_off);
+            compat_caps_num_++;
             next_cap_off = compat_cap->next_cap;
     }
 
@@ -131,12 +134,16 @@ void PciDevBase::parse_capabilities()
             auto ext_cap = reinterpret_cast<const ExtCapHdr *>
                            (cfg_space_.get() + next_cap_off);
             auto cap_type = ExtCapID{ext_cap->cap_id};
-            if (cap_type != ExtCapID::null_cap)
+            if (cap_type != ExtCapID::null_cap) {
                 caps_.emplace_back(CapType::extended, ext_cap->cap_id, ext_cap->cap_ver,
                                    next_cap_off);
+                extended_caps_num_++;
+            }
             next_cap_off = ext_cap->next_cap;
         }
     }
+
+    assert(caps_.size() != 0);
 }
 
 void PciDevBase::dump_capabilities() noexcept
