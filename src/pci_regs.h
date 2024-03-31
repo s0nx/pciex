@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "util.h"
 #include <cstdint>
 
 // Type 0 device configuration header register offsets
@@ -497,9 +496,43 @@ struct RegPciECap
     uint16_t dev_port_type : 4;
     uint16_t     slot_impl : 1;
     uint16_t   itr_msg_num : 5;
-    uint16_t          rsvd : 1;
+    uint16_t         rsvd  : 2;
 } __attribute__((packed));
 static_assert(sizeof(RegPciECap) == 2);
+
+constexpr auto PciEDevPortDescType0(const uint8_t val) noexcept
+{
+    switch (val) {
+    case 0b0000:
+        return "PCI Express Endpoint";
+    case 0b0001:
+        return "Legacy PCI Express Endpoint";
+    case 0b1001:
+        return "RCiEP";
+    case 0b1010:
+        return "RC Event Collector";
+    default:
+        return "< undefined >";
+    }
+}
+
+constexpr auto PciEDevPortDescType1(const uint8_t val) noexcept
+{
+    switch (val) {
+    case 0b0100:
+        return "Root Port of PCIe RC";
+    case 0b0101:
+        return "Upstream Port of PCIe switch";
+    case 0b0110:
+        return "Downstream Port of PCIe switch";
+    case 0b0111:
+        return "PCIe -> PCI/PCIX bridge";
+    case 0b1000:
+        return "PCI/PCIX -> PCIe bridge";
+    default:
+        return "< undefined >";
+    }
+}
 
 struct RegDevCap
 {
@@ -516,6 +549,70 @@ struct RegDevCap
     uint32_t                   rsvd1 : 3;
 } __attribute__((packed));
 static_assert(sizeof(RegDevCap) == 4);
+
+constexpr auto EpL0sAcceptLatDesc(const uint8_t val) noexcept
+{
+    switch (val) {
+    case 0b000:
+        return "64 ns";
+    case 0b001:
+        return "128 ns";
+    case 0b010:
+        return "256 ns";
+    case 0b011:
+        return "512 ns";
+    case 0b100:
+        return "1 us";
+    case 0b101:
+        return "2 us";
+    case 0b110:
+        return "4 us";
+    case 0b111:
+        return "no limit";
+    default:
+        return "< undefined >";
+    }
+}
+
+constexpr auto EpL1AcceptLatDesc(const uint8_t val) noexcept
+{
+    switch (val) {
+    case 0b000:
+        return "1 us";
+    case 0b001:
+        return "2 us";
+    case 0b010:
+        return "4 us";
+    case 0b011:
+        return "8 us";
+    case 0b100:
+        return "16 us";
+    case 0b101:
+        return "32 us";
+    case 0b110:
+        return "64 us";
+    case 0b111:
+        return "no limit";
+    default:
+        return "< undefined >";
+    }
+}
+
+constexpr auto CapSlotPWRScale(const uint8_t val) noexcept
+{
+    switch (val) {
+    case 0b00:
+        return "1x";
+    case 0b01:
+        return "0.1x";
+    case 0b10:
+        return "0.01x";
+    case 0b11:
+        return "0.001x";
+    default:
+        return "< undefined >";
+    }
+}
 
 struct RegDevCtl
 {
@@ -564,6 +661,76 @@ struct RegLinkCap
 } __attribute__((packed));
 static_assert(sizeof(RegLinkCap) == 4);
 
+constexpr auto LinkWidthDesc(const uint8_t val) noexcept
+{
+    switch (val) {
+    case 0b0000001:
+        return "x1";
+    case 0b000010:
+        return "x2";
+    case 0b000100:
+        return "x4";
+    case 0b001000:
+        return "x8";
+    case 0b001100:
+        return "x12";
+    case 0b010000:
+        return "x16";
+    case 0b100000:
+        return "x32";
+    default:
+        return "< undefined >";
+    }
+}
+
+constexpr auto LinkCapL0sExitLat(const uint8_t val) noexcept
+{
+    switch (val) {
+    case 0b000:
+        return "< 64 ns";
+    case 0b001:
+        return "64 ns - 128 ns";
+    case 0b010:
+        return "128 ns - 256 ns";
+    case 0b011:
+        return "256 ns - 512 ns";
+    case 0b100:
+        return "512 ns - 1 us";
+    case 0b101:
+        return "1 us - 2 us";
+    case 0b110:
+        return "2 us - 4 us";
+    case 0b111:
+        return "> 4 us";
+    default:
+        return "< undefined >";
+    }
+}
+
+constexpr auto LinkCapL1ExitLat(const uint8_t val) noexcept
+{
+    switch (val) {
+    case 0b000:
+        return "< 1 us";
+    case 0b001:
+        return "1 us - 2 us";
+    case 0b010:
+        return "2 us - 4 us";
+    case 0b011:
+        return "4 us - 8 us";
+    case 0b100:
+        return "8 us - 16 us";
+    case 0b101:
+        return "16 us - 32 us";
+    case 0b110:
+        return "32 us - 64 us";
+    case 0b111:
+        return "> 64 us";
+    default:
+        return "< undefined >";
+    }
+}
+
 struct RegLinkCtl
 {
     uint16_t                 aspm_ctl : 2;
@@ -581,6 +748,20 @@ struct RegLinkCtl
     uint16_t            drs_signl_ctl : 1;
 } __attribute__((packed));
 static_assert(sizeof(RegLinkCtl) == 2);
+
+constexpr auto LinkCtlDrsSigCtlDesc(const uint8_t val) noexcept
+{
+    switch (val) {
+    case 0b00:
+        return "DRS not reported";
+    case 0b01:
+        return "DRS itr enabled";
+    case 0b10:
+        return "DRS -> FRS signaling enabled";
+    default:
+        return "< undefined >";
+    }
+}
 
 struct RegLinkStatus
 {
@@ -612,6 +793,23 @@ struct RegSlotCap
 } __attribute__((packed));
 static_assert(sizeof(RegSlotCap) == 4);
 
+constexpr auto SlotCapPWRLimitDesc(const uint8_t val) noexcept
+{
+    switch (val) {
+    case 0xf0:
+        return "250 W";
+    case 0xf1:
+        return "275 W";
+    case 0xf2:
+        return "300 W";
+    default:
+        if (val >= 0xf3)
+            return "> 300 W";
+        else
+            return "< undefined >";
+    }
+}
+
 struct RegSlotCtl
 {
     uint16_t             attn_btn_pres_ena : 1;
@@ -629,6 +827,22 @@ struct RegSlotCtl
     uint16_t                          rsvd : 2;
 } __attribute__((packed));
 static_assert(sizeof(RegSlotCtl) == 2);
+
+constexpr auto SlotCtlIndCtrlDesc(const uint8_t val) noexcept
+{
+    switch (val) {
+    case 0b00:
+        return "Rsvd";
+    case 0b01:
+        return "On";
+    case 0b10:
+        return "Blink";
+    case 0b11:
+        return "Off";
+    default:
+        return "< undefined >";
+    }
+}
 
 struct RegSlotStatus
 {
@@ -698,6 +912,22 @@ struct RegDevCap2
 } __attribute__((packed));
 static_assert(sizeof(RegDevCap2) == 4);
 
+constexpr auto DevCap2LNSysCLSDesc(const uint8_t val) noexcept
+{
+    switch (val) {
+    case 0b00:
+        return "[not supported]";
+    case 0b01:
+        return "LN compl 64b CLs";
+    case 0b10:
+        return "LN compl 128b CLs";
+    case 0b11:
+        return "rsvd";
+    default:
+        return "< undefined >";
+    }
+}
+
 struct RegDevCtl2
 {
     uint16_t       cmpl_timeout_val : 4;
@@ -714,6 +944,48 @@ struct RegDevCtl2
     uint16_t end_end_tlp_pref_block : 1;
 } __attribute__((packed));
 static_assert(sizeof(RegDevCtl2) == 2);
+
+constexpr auto CmplTimeoutValueDesc(const uint8_t val)
+{
+    switch (val) {
+    case 0b0000:
+        return "50 us - 50 ms";
+    case 0b0001:
+        return "50 us - 100 us";
+    case 0b0010:
+        return "1 ms - 10 ms";
+    case 0b0101:
+        return "16 ms - 55 ms";
+    case 0b0110:
+        return "65 ms - 210 ms";
+    case 0b1001:
+        return "260 ms - 900 ms";
+    case 0b1010:
+        return "1 s - 3.5 s";
+    case 0b1101:
+        return "4 s - 13 s";
+    case 0b1110:
+        return "17 s - 64 s";
+    default:
+        return "[rsvd]";
+    }
+}
+
+constexpr auto DevCtl2ObffDesc(const uint8_t val)
+{
+    switch (val) {
+    case 0b00:
+        return "disabled";
+    case 0b01:
+        return "enabled [msg sign A]";
+    case 0b10:
+        return "enabled [msg sign B]";
+    case 0b11:
+        return "enabled [#WAKE sign]";
+    default:
+        return "[rsvd]";
+    }
+}
 
 struct RegDevStatus2
 {
@@ -748,6 +1020,22 @@ struct RegLinkCtl2
 } __attribute__((packed));
 static_assert(sizeof(RegLinkCtl2) == 2);
 
+constexpr auto LinkSpeedBitDesc(const uint8_t val)
+{
+    switch (val) {
+    case 0b00:
+        return "2.5 GT/s";
+    case 0b01:
+        return "5.0 GT/s";
+    case 0b10:
+        return "8.0 GT/s";
+    case 0b11:
+        return "16.0 GT/s";
+    default:
+        return "< undefined >";
+    }
+}
+
 struct RegLinkStatus2
 {
     uint16_t curr_de_emph_lvl      : 1;
@@ -764,6 +1052,44 @@ struct RegLinkStatus2
     uint16_t drs_msg_recv          : 1;
 } __attribute__((packed));
 static_assert(sizeof(RegLinkStatus2) == 2);
+
+constexpr auto CrosslinkResDesc(const uint8_t val)
+{
+    switch (val) {
+    case 0b00:
+        return "[not supported]";
+    case 0b01:
+        return "upstream port";
+    case 0b10:
+        return "downstream port";
+    case 0b11:
+        return "crosslink negotiation not completed";
+    default:
+        return "< undefined >";
+    }
+}
+
+constexpr auto DownstreamCompPresDesc(const uint8_t val)
+{
+    switch (val) {
+    case 0b000:
+        return "link down [pres not determined]";
+    case 0b001:
+        return "link down [comp not present]";
+    case 0b010:
+        return "link down [comp present]";
+    case 0b100:
+        return "link up [comp present]";
+    case 0b101:
+        return "link up [comp present + DRS]";
+    case 0b011:
+    case 0b110:
+    case 0b111:
+        return "[rsvd]";
+    default:
+        return "< undefined >";
+    }
+}
 
 struct RegSlotCap2
 {
@@ -810,8 +1136,21 @@ struct PciECap
     RegSlotCap2    slot_cap2;    // 0x34
     RegSlotCtl2    slot_ctl2;    // 0x38
     RegSlotStatus2 slot_status2; // 0x3a
-} __attribute__((packed));
+} __attribute__((packed, aligned(4)));
 static_assert(sizeof(PciECap) == 0x3c);
+
+// various formatting helpers
+enum class LinkSpeedRepType
+{
+    max,
+    current,
+    target
+};
+
+std::string LinkSpeedDesc(LinkSpeedRepType rep_type, const uint8_t link_speed,
+                          const RegLinkCap2 &link_cap2);
+std::string CmplTimeoutRangesDesc(const RegDevCap2 &dev_cap2);
+std::string SuppLinkSpeedDesc(const uint8_t link_speed_vector);
 
 
 struct RegPMCap

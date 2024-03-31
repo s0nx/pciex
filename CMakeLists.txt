@@ -43,6 +43,7 @@ target_sources(pciex PRIVATE
     src/linux-sysfs.cpp
     src/main.cpp
     src/pciex.cpp
+    src/pci_regs.cpp
     src/topology.cpp
     src/util.cpp
     src/ui/screen.cpp
