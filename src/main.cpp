@@ -14,6 +14,7 @@
 
 Verbosity LoggerVerbosity = Verbosity::INFO;
 Logger logger;
+vm::VmallocStats vm_info;
 
 int main()
 {
@@ -34,16 +35,18 @@ int main()
         std::exit(EXIT_FAILURE);
     }
 
-    if (!sys::is_kptr_set())
+    if (sys::IsKptrSet()) {
+        try {
+            vm_info.Parse();
+        } catch (std::exception &ex) {
+            logger.err("Exception occured while parsing /proc/vmallocinfo: {}", ex.what());
+        }
+    } else {
         logger.warn("vmalloced addresses are hidden\n");
+    }
 
-    vm::VmallocStats vm_map_stats;
-    vm_map_stats.parse();
-    vm_map_stats.dump_stats();
-
-    auto pa_start = 0x000000603d1d9000;
-    auto pa_end = pa_start + 0x1000;
-    vm_map_stats.get_mapping_in_range(pa_start, pa_end);
+    if (vm_info.InfoAvailable())
+        vm_info.DumpStats();
 
     pci::PCITopologyCtx topology;
     try {

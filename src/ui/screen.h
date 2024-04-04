@@ -10,6 +10,8 @@
 
 #include "../pciex.h"
 
+extern vm::VmallocStats vm_info;
+
 namespace ui {
 
 enum class CnvShiftDir

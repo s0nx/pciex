@@ -25,56 +25,6 @@ extern Logger logger;
 
 namespace fs = std::filesystem;
 
-namespace vm {
-
-constexpr int pg_size = 4096;
-
-/* This object repesents a struct vm_struct of the Linux kernel */
-struct VmallocEntry
-{
-    uint64_t start;
-    uint64_t end;
-    uint64_t len;
-    uint64_t pa;
-};
-
-class VmallocStats
-{
-private:
-    std::string_view vmallocinfo {"/proc/vmallocinfo"};
-    std::vector<VmallocEntry> vm_info;
-
-public:
-    void add_entry(const VmallocEntry &entry);
-    void dump_stats();
-    void parse();
-    void get_mapping_in_range(uint64_t start, uint64_t end);
-};
-
-} /* namespace vm */
-
-
-namespace sys {
-
-/*
- * Due to the fact that `%pK` format specifier is being used to print
- * the virtual address range, `kptr_restrict` sysctl parameter MUST be set to 1.
- * Otherwise we would get hashed addresses.
- * See Documentation/admin-guide/sysctl/kernel.rst doc in the Linux sources
- * This is needed for VmallocStats::parse().
- */
-enum class kptr_mode
-{
-    HASHED = 0,
-    REAL_ADDR,
-    HIDDEN
-};
-
-constexpr char kptr_path[] {"/proc/sys/kernel/kptr_restrict"};
-bool is_kptr_set();
-
-} /* namespace sys */
-
 namespace pci {
 
 enum class cfg_space_type

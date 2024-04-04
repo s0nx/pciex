@@ -3,18 +3,18 @@
 
 #include "pciex.h"
 
-void vm::VmallocStats::add_entry(const VmallocEntry &entry)
+void vm::VmallocStats::AddEntry(const VmallocEntry &entry)
 {
-    vm_info.push_back(entry);
+    vm_entries_.push_back(entry);
 }
 
-void vm::VmallocStats::dump_stats()
+void vm::VmallocStats::DumpStats()
 {
     logger.info("vmalloc stats dump: >>>");
-    for (std::size_t i = 0; const auto &elem : vm_info)
+    for (std::size_t i = 0; const auto &elem : vm_entries_)
     {
         logger.raw("#{} ::> [ >{:#x} - {:#x}< len: {:#x} pa: {:#x} ]",
-                   i++, elem.start, elem.end, elem.len, elem.pa);
+                   i++, elem.start_, elem.end_, elem.len_, elem.pa_);
     }
 }
 
@@ -22,19 +22,22 @@ void vm::VmallocStats::dump_stats()
 // is mapped into.
 // It is possible that only a fraction of the physical address space is mapped.
 // TODO: use interval tree instead?
-void vm::VmallocStats::get_mapping_in_range(uint64_t pa_start, uint64_t pa_end)
+std::vector<vm::VmallocEntry>
+vm::VmallocStats::GetMappingInRange(uint64_t pa_start, uint64_t pa_end)
 {
     std::vector<VmallocEntry> result;
 
-    auto lb = std::ranges::lower_bound(vm_info, pa_start, std::less<>{}, &VmallocEntry::pa);
-    auto ub = std::ranges::upper_bound(vm_info, pa_end, std::less<>{}, &VmallocEntry::pa);
+    auto lb = std::ranges::lower_bound(vm_entries_, pa_start, std::less<>{}, &VmallocEntry::pa_);
+    auto ub = std::ranges::upper_bound(vm_entries_, pa_end - 1, std::less<>{}, &VmallocEntry::pa_);
     std::ranges::copy(lb, ub, std::back_inserter(result));
 
     if (!result.empty()) {
         logger.info("Found VA mapping for PA range [{:#x} - {:#x}]:", pa_start, pa_end);
         std::ranges::for_each(result, [](const auto &n) {
-                logger.raw("VA [{:#x} - {:#x}] len {:#x}", n.start, n.end, n.len); });
+                logger.raw("VA [{:#x} - {:#x}] len {:#x}", n.start_, n.end_, n.len_); });
     }
+
+    return result;
 }
 
 // Parse /proc/vmallocinfo in order to know how exactly a portion of
@@ -46,9 +49,9 @@ void vm::VmallocStats::get_mapping_in_range(uint64_t pa_start, uint64_t pa_end)
 // This flag is not set for ioremap, so the reported VA range length
 // should be interpreted as (VA end - VA start - PAGE_SIZE).
 // See mm/vmalloc.c: __get_vm_area_node() for details.
-void vm::VmallocStats::parse()
+void vm::VmallocStats::Parse()
 {
-    std::ifstream proc_vminfo(vmallocinfo.data(), std::ios::in);
+    std::ifstream proc_vminfo(VmallocInfoFile.data(), std::ios::in);
     if (!proc_vminfo.is_open()) {
         logger.err("Failed to open /proc/vmallocinfo");
         return;
@@ -66,32 +69,34 @@ void vm::VmallocStats::parse()
 
         // VA start
         e_pos = mapping_entry.find("-");
-        entry.start = std::stoull(mapping_entry.substr(s_pos, e_pos - s_pos),
+        entry.start_ = std::stoull(mapping_entry.substr(s_pos, e_pos - s_pos),
                                   nullptr, 16);
         // VA end
         s_pos = e_pos + 1;
         e_pos = mapping_entry.find(" ");
-        entry.end = std::stoull(mapping_entry.substr(s_pos, e_pos - s_pos),
+        entry.end_ = std::stoull(mapping_entry.substr(s_pos, e_pos - s_pos),
                                 nullptr, 16);
-        entry.end -= vm::pg_size;
-        entry.len = entry.end - entry.start;
+        entry.end_ -= vm::pg_size;
+        entry.len_ = entry.end_ - entry.start_;
 
         // phys addr
         s_pos = mapping_entry.find("=", e_pos) + 1;
         e_pos = mapping_entry.find(" ", s_pos);
-        entry.pa = std::stoull(mapping_entry.substr(s_pos, e_pos - s_pos),
+        entry.pa_ = std::stoull(mapping_entry.substr(s_pos, e_pos - s_pos),
                                nullptr, 16);
-        vm_info.push_back(std::move(entry));
+        vm_entries_.push_back(std::move(entry));
     }
 
-    std::ranges::sort(vm_info, [](const auto &a, const auto &b) {
-                      return a.pa < b.pa; });
+    std::ranges::sort(vm_entries_, [](const auto &a, const auto &b) {
+                      return a.pa_ < b.pa_; });
+
+    vm_info_available_ = true;
 }
 
-bool sys::is_kptr_set()
+bool sys::IsKptrSet()
 {
     int val;
-    std::ifstream ist(kptr_path, std::ios::in);
+    std::ifstream ist(KptrSysPath.data(), std::ios::in);
     if (!ist.is_open()) {
         logger.err("Unable to check 'kptr_restrict' setting");
         return false;

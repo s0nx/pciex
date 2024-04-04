@@ -1205,12 +1205,33 @@ RegInfoBARComp(const pci::PciDevBase *dev, const compat_reg_type_t reg_type,
             text(fmt::format("prefetchable: {}", cur_bar_res.is_prefetchable_ ? "▣ " : "☐ "))
         });
 
-        content = vbox({
-            text("Memory space:") | bold,
+        Elements content_elems {
+            text("Memory space:") | bold, 
             separatorLight(),
             reg_box,
             desc
-        });
+        };
+
+        if (vm_info.InfoAvailable()) {
+            auto pa_start = cur_bar_res.phys_addr_;
+            auto pa_end = cur_bar_res.phys_addr_ + cur_bar_res.len_;
+            auto va2pa_info = vm_info.GetMappingInRange(pa_start, pa_end);
+
+            if (!va2pa_info.empty()) {
+                content_elems.push_back(separatorEmpty());
+                content_elems.push_back(
+                        text(fmt::format("v2p mappings for PA range [{:#x} - {:#x}]:",
+                                         pa_start, pa_end)));
+                for (const auto &vm_e : va2pa_info) {
+                    content_elems.push_back(
+                        text(fmt::format("VA range [{:#x} - {:#x}] -> PA {:#x} len {:#x}",
+                                         vm_e.start_, vm_e.end_, vm_e.pa_, vm_e.len_))
+                    );
+                }
+            }
+        }
+
+        content = vbox(content_elems);
     }
 
     return CreateRegInfoCompat(reg_type, std::move(content), on_click);

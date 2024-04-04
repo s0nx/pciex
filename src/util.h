@@ -7,6 +7,7 @@
 #include <string>
 #include <algorithm>
 #include <cassert>
+#include <vector>
 
 // Explicit scoped enums to underlying type conversion
 template <typename E>
@@ -49,3 +50,54 @@ struct CommonEx : public std::runtime_error
     CommonEx(const std::string &ex_msg) : std::runtime_error(ex_msg) {}
 };
 
+namespace vm {
+
+constexpr int pg_size = 4096;
+constexpr std::string_view VmallocInfoFile { "/proc/vmallocinfo" };
+
+/* This object repesents a struct vm_struct of the Linux kernel */
+struct VmallocEntry
+{
+    uint64_t start_;
+    uint64_t end_;
+    uint64_t len_;
+    uint64_t pa_;
+};
+
+class VmallocStats
+{
+private:
+    std::vector<VmallocEntry> vm_entries_;
+    bool                      vm_info_available_ {false};
+
+public:
+    void AddEntry(const VmallocEntry &entry);
+    void DumpStats();
+    void Parse();
+    bool InfoAvailable() { return vm_info_available_; }
+    std::vector<VmallocEntry> GetMappingInRange(uint64_t start, uint64_t end);
+};
+
+} /* namespace vm */
+
+
+namespace sys {
+
+/*
+ * Due to the fact that `%pK` format specifier is being used to print
+ * the virtual address range, `kptr_restrict` sysctl parameter MUST be set to 1.
+ * Otherwise we would get hashed addresses.
+ * See Documentation/admin-guide/sysctl/kernel.rst doc in the Linux sources
+ * This is needed for VmallocStats::parse().
+ */
+enum class kptr_mode
+{
+    HASHED = 0,
+    REAL_ADDR,
+    HIDDEN
+};
+
+constexpr std::string_view KptrSysPath {"/proc/sys/kernel/kptr_restrict"};
+bool IsKptrSet();
+
+} /* namespace sys */
