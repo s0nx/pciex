@@ -242,7 +242,7 @@ bool CanvasDevBlockMap::Insert(std::shared_ptr<CanvasElemPCIDev> dev)
     return res.second;
 }
 
-void CanvasDevBlockMap::SelectDevice(const uint16_t mouse_x, const uint16_t mouse_y,
+void CanvasDevBlockMap::SelectDeviceByPos(const uint16_t mouse_x, const uint16_t mouse_y,
                                      ScrollableCanvas &canvas)
 {
     auto y_iter = blocks_y_dim_.lower_bound({mouse_y * 4, 0});
@@ -254,23 +254,49 @@ void CanvasDevBlockMap::SelectDevice(const uint16_t mouse_x, const uint16_t mous
         auto x_in_pixels = mouse_x * sym_width;
 
         if (x_in_pixels >= x && x_in_pixels <= x + len) {
-            if (selected_dev_ != nullptr) {
-                selected_dev_->selected_ = false;
+            if (selected_dev_iter_ != y_iter) {
+                selected_dev_iter_->second->selected_ = false;
                 // redraw previously selected element since it's not selected now
-                selected_dev_->Draw(canvas);
+                selected_dev_iter_->second->Draw(canvas);
+
+                selected_dev_iter_ = y_iter;
+                selected_dev_iter_->second->selected_ = true;
+
+                // redraw newly selected element
+                selected_dev_iter_->second->Draw(canvas);
             }
+        }
+    }
+}
 
-            selected_dev_ = y_iter->second;
-            selected_dev_->selected_ = true;
+void CanvasDevBlockMap::SelectNextPrevDevice(ScrollableCanvas &canvas, bool select_next)
+{
+    if (select_next) { // move selector to next device
+        auto it_next = std::next(selected_dev_iter_);
+        if (it_next != blocks_y_dim_.end()) {
+            selected_dev_iter_->second->selected_ = false;
+            selected_dev_iter_->second->Draw(canvas);
 
-            // redraw newly selected element
-            selected_dev_->Draw(canvas);
+            selected_dev_iter_ = it_next;
+            selected_dev_iter_->second->selected_ = true;
+            selected_dev_iter_->second->Draw(canvas);
+        }
+    } else { // move selector to previous device
+        if (selected_dev_iter_ != blocks_y_dim_.begin()) {
+            selected_dev_iter_->second->selected_ = false;
+            selected_dev_iter_->second->Draw(canvas);
+
+            selected_dev_iter_--;
+            selected_dev_iter_->second->selected_ = true;
+            selected_dev_iter_->second->Draw(canvas);
         }
     }
 }
 
 void CanvasDevBlockMap::Reset()
 {
+    // temporarily preserve currently selected device
+    selected_dev_ = selected_dev_iter_->second;
     blocks_y_dim_.clear();
 }
 
@@ -343,9 +369,9 @@ bool PCITopoUIComp::OnEvent(Event event)
         }
 
         if (event.mouse().button == Mouse::Left)
-            block_map_.SelectDevice(event.mouse().x + area->off_x_,
-                                   event.mouse().y + area->off_y_,
-                                   canvas_);
+            block_map_.SelectDeviceByPos(event.mouse().x + area->off_x_,
+                                         event.mouse().y + area->off_y_,
+                                         canvas_);
 
         return true;
     }
@@ -374,6 +400,13 @@ bool PCITopoUIComp::OnEvent(Event event)
         case 'v':
             SwitchDrawingMode(ElemReprMode::Verbose);
             break;
+        // select next/prev device via 'j'/'k' + shift
+        case 'J':
+            block_map_.SelectNextPrevDevice(canvas_, true);
+            break;
+        case 'K':
+            block_map_.SelectNextPrevDevice(canvas_, false);
+            break;
         default:
             break;
         }
@@ -397,19 +430,22 @@ void PCITopoUIComp::AddTopologyElements()
     canvas_.VisibleAreaSetMax(max_width_, canvas_.height() / 4);
 
     // select element
-    if (block_map_.selected_dev_ == nullptr) {
-        block_map_.selected_dev_ = block_map_.blocks_y_dim_.begin()->second;
-        block_map_.selected_dev_->selected_ = true;
+    if (block_map_.selected_dev_iter_ == block_map_.blocks_y_dim_.end()) {
+        block_map_.selected_dev_iter_ = block_map_.blocks_y_dim_.begin();
+        block_map_.selected_dev_iter_->second->selected_ = true;
     } else {
         auto cur_dev = block_map_.selected_dev_->dev_;
-        for (const auto &dev : block_map_.blocks_y_dim_) {
-            if (dev.second->dev_ == cur_dev) {
-                block_map_.selected_dev_ = dev.second;
-                block_map_.selected_dev_->selected_ = true;
+        for (auto it = block_map_.blocks_y_dim_.begin();
+                    it != block_map_.blocks_y_dim_.end(); it++) {
+            if (it->second->dev_ == cur_dev) {
+                block_map_.selected_dev_iter_ = it;
+                block_map_.selected_dev_iter_->second->selected_ = true;
                 break;
             }
         }
+
     }
+
     DrawElements();
 }
 

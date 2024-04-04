@@ -175,14 +175,22 @@ typedef std::pair<uint16_t, uint16_t> BlockSnglDimDesc;
 
 inline auto bd_comp = [](const BlockSnglDimDesc &bd1, const BlockSnglDimDesc &bd2) {
                         return bd1.first < bd2.first; };
+typedef std::map<BlockSnglDimDesc, std::shared_ptr<CanvasElemPCIDev>,
+                 decltype(bd_comp)> CanvasSnglDimBlockMap;
+typedef CanvasSnglDimBlockMap::iterator BlockMapIter;
+
 struct CanvasDevBlockMap
 {
-    std::map<BlockSnglDimDesc, std::shared_ptr<CanvasElemPCIDev>,
-                    decltype(bd_comp)> blocks_y_dim_;
+    CanvasSnglDimBlockMap             blocks_y_dim_;
     std::shared_ptr<CanvasElemPCIDev> selected_dev_;
+    BlockMapIter                      selected_dev_iter_;
+
+    CanvasDevBlockMap() : selected_dev_iter_(blocks_y_dim_.end()) {}
 
     bool Insert(std::shared_ptr<CanvasElemPCIDev> dev);
-    void SelectDevice(const uint16_t mouse_x, const uint16_t mouse_y, ScrollableCanvas &canvas);
+    void SelectDeviceByPos(const uint16_t mouse_x, const uint16_t mouse_y,
+                           ScrollableCanvas &canvas);
+    void SelectNextPrevDevice(ScrollableCanvas &canvas, bool select_next);
     void Reset();
 };
 
@@ -196,6 +204,7 @@ public:
         ftxui::ComponentBase(),
         topo_ctx_(ctx),
         current_drawing_mode_(ElemReprMode::Compact),
+        block_map_(),
         canvas_(width, height)
     {
         AddTopologyElements();
@@ -207,7 +216,9 @@ public:
     bool Focusable() const final { return true; }
     std::shared_ptr<pci::PciDevBase> GetSelectedDev() noexcept
     {
-        return block_map_.selected_dev_->dev_;
+        if (block_map_.selected_dev_iter_ == block_map_.blocks_y_dim_.end())
+            return nullptr;
+        return block_map_.selected_dev_iter_->second->dev_;
     }
 
 private:
