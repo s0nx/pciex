@@ -153,13 +153,6 @@ public:
         const int y_max = std::min(c.height() / 4, box_.y_max - box_.y_min + 1);
         const int x_max = std::min(c.width() / 2, box_.x_max - box_.x_min + 1);
 
-        //logger.info("CANVAS RENDER: BOX -> y_max {} y_min {} x_max {} x_min {}",
-        //            box_.y_max, box_.y_min, box_.x_max, box_.x_min);
-        //logger.info("Coff: X {} - Y {}", c.x_off(), c.y_off());
-        //logger.info("CR: screen.stencil -> y_max {} y_min {} x_max {} x_min {}",
-        //            screen.stencil.y_max, screen.stencil.y_min,
-        //            screen.stencil.x_max, screen.stencil.x_min);
-
         for (int y = 0; y < y_max; ++y) {
           for (int x = 0; x < x_max; ++x) {
             screen.PixelAt(box_.x_min + x, box_.y_min + y) =
