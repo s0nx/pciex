@@ -2475,11 +2475,48 @@ CompatVendorSpecCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                         CapHdrComp(vspec->hdr)
                     }));
 
-
     auto buf_dump_elem = GetHexDumpElem(fmt::format("data [len {:#02x}] >>>", vspec->len),
                                         vspec_buf, vspec->len);
+    Elements content_elems {
+        buf_dump_elem
+    };
+
+    auto vid = dev->get_vendor_id();
+    auto dev_id = dev->get_device_id();
+
+    if (virtio::is_virtio_dev(vid, dev_id)) {
+        // show additional info for modern virtio devices only
+        if (virtio::is_virtio_modern(dev_id)) {
+            auto virtio_struct = reinterpret_cast<const virtio::VirtIOPCICap *>
+                                 (dev->cfg_space_.get() + off);
+            if (virtio_struct->cfg_type > e_to_type(virtio::VirtIOCapID::cap_id_max)) {
+                logger.warn("{}: unexpected virtio cfg type ({}) in vendor spec cap (off {:02x})",
+                            dev->dev_id_str_, virtio_struct->cfg_type, off);
+            } else {
+                content_elems.push_back(separatorEmpty());
+                auto vhdr = text("[VirtIO]") | bold | bgcolor(Color::Blue) | color(Color::Grey15);
+                content_elems.push_back(hbox({std::move(vhdr), separatorEmpty()}));
+
+                virtio::VirtIOCapID cap_id {virtio_struct->cfg_type};
+                content_elems.push_back(text(fmt::format("struct type: [{:#01x}] {}",
+                                                         virtio_struct->cfg_type,
+                                                         virtio::VirtIOCapIDName(cap_id))));
+                // "PCI conf access" layout (0x5) can't be mapped by BAR.
+                // It's an alternative access method to conf regions
+                if (cap_id != virtio::VirtIOCapID::pci_cfg_acc) {
+                    content_elems.push_back(text(fmt::format("        BAR:  {:#01x}", virtio_struct->bar_idx)));
+                    content_elems.push_back(text(fmt::format("         id:  {:#02x}", virtio_struct->id)));
+                    content_elems.push_back(text(fmt::format(" BAR offset:  {:#x}", virtio_struct->bar_off)));
+                    content_elems.push_back(text(fmt::format(" struct len:  {:#x}", virtio_struct->length)));
+                }
+            }
+        }
+    }
+
+    auto content_elem = vbox(content_elems);
+
     lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] Vendor-Specific", off),
-                                     "Info", std::move(buf_dump_elem), &vis[i]));
+                                     "Info", std::move(content_elem), &vis[i]));
 
     return {std::move(upper), std::move(lower)};
 }

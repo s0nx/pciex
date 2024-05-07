@@ -19,6 +19,7 @@
 
 #include "log.h"
 #include "pci_regs.h"
+#include "virtio_regs.h"
 #include "ids_parse.h"
 
 extern Logger logger;
