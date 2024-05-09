@@ -351,4 +351,6 @@ struct PCIRegsComponent : ftxui::ComponentBase
 
 };
 
+ftxui::Component GetHelpScreenComp(std::function<void()>);
+
 } // namespace ui

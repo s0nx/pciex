@@ -3586,4 +3586,84 @@ void PCIRegsComponent::FinalizeComponent()
     });
 }
 
+static Element GetLogo()
+{
+  std::vector<std::string> lvt {
+    R"(  ______   ______     __     ______     __  __    )",
+    R"( /\  == \ /\  ___\   /\ \   /\  ___\   /\_\_\_\   )",
+    R"( \ \  _-/ \ \ \____  \ \ \  \ \  __\   \/_/\_\/_  )",
+    R"(  \ \_\    \ \_____\  \ \_\  \ \_____\   /\_\/\_\ )",
+    R"(   \/_/     \/_____/   \/_/   \/_____/   \/_/\/_/ )",
+    R"(                                                  )"
+  };
+
+  Elements elems;
+
+  for (const auto &el : lvt)
+    elems.push_back(text(el) | bold);
+
+  auto logo = vbox(std::move(elems));
+  logo |= bgcolor(LinearGradient()
+                    .Angle(45)
+                    .Stop(Color::Yellow3Bis)
+                    .Stop(Color::DeepSkyBlue2)
+                 );
+  logo |= color(Color::Grey15);
+
+  return logo;
+}
+
+static Element GetHelpElem()
+{
+  std::vector<std::string> lvt {
+    R"( General navigation/actions:                                  )",
+    R"(                  │ device regs /                             )",
+    R"(      device tree │   capabilities                            )",
+    R"(         pane     ├────────────────                           )",
+    R"(                  │ reg / cap                                 )",
+    R"(                  │ detailed info                             )",
+    R"(                                                              )",
+    R"(  resize pane(s) - drag the border while holding left mouse   )",
+    R"(                   button                                     )",
+    R"(  TAB/h/k/left click - move focus to specific pane            )",
+    R"(                                                              )",
+    R"( Pane navigation:                                             )",
+    R"(  [h, j, k, l] or arrows - scroll left, down, up, right       )",
+    R"(  shift + j/k - select next/previous device in the hierarchy  )",
+    R"(                can also be selected with mouse               )",
+    R"(                (device tree pane only)                       )",
+    R"(  mouse wheel up/down         - vertical scroll               )",
+    R"(  shift + mouse wheel up/down - horizontal scroll             )",
+    R"(                                (device tree pane only)       )",
+    R"(  left click / enter          - show/hide detailed info       )",
+    R"(                                (device regs/caps pane only)  )",
+    R"( Other hotkeys:                                               )",
+    R"(  c/v - device tree pane compact/verbose drawing mode switch  )",
+    R"(  ?   - help open/close                                       )",
+    R"(                                                              )"
+  };
+
+  Elements elems;
+  for (const auto &el : lvt)
+    elems.push_back(text(el));
+
+  return vbox(std::move(elems));
+}
+
+Component GetHelpScreenComp(std::function<void()> hide_fn)
+{
+    auto help_comp = ftxui::Renderer([&] {
+        return ftxui::vbox({
+          GetLogo() | center,
+          separatorEmpty(),
+          GetHelpElem()
+        }) | borderDouble;
+    });
+
+    return Container::Vertical({
+        std::move(help_comp),
+        Button("[ X ]", hide_fn, ui::RegButtonDefaultOption())
+    });
+}
+
 } //namespace ui

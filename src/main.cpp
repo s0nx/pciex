@@ -62,18 +62,42 @@ int main()
     auto topo_canvas = ui::MakeTopologyComp(width, height, topology);
 
     auto pci_regs_component = std::make_shared<ui::PCIRegsComponent>(topo_canvas);
-    int right_size = 60;
+    int right_pane_size = 60;
 
-    auto container_split = ftxui::ResizableSplit({
+    auto main_component_split = ftxui::ResizableSplit({
         .main = topo_canvas,
         .back = pci_regs_component,
         .direction = ftxui::Direction::Left,
-        .main_size = &right_size,
+        .main_size = &right_pane_size,
         .separator_func = [] { return ftxui::separatorDouble(); }
     });
 
+    bool show_help = false;
+    auto hide_modal = [&] { show_help = false; };
+
+    main_component_split |= ftxui::CatchEvent([&](ftxui::Event ev) {
+        if (ev.is_character()) {
+            if (ev.character()[0] == '?')
+                show_help = show_help ? false : true;
+        }
+
+        return false;
+    });
+
+    auto help_component = ui::GetHelpScreenComp(hide_modal);
+    help_component |= ftxui::CatchEvent([&](ftxui::Event ev) {
+        if (ev.is_character()) {
+            if (ev.character()[0] == '?')
+                show_help = show_help ? false : true;
+        }
+
+        return false;
+    });
+
+    main_component_split |= ftxui::Modal(help_component, &show_help);
+
     auto screen = ftxui::ScreenInteractive::Fullscreen();
-    screen.Loop(container_split);
+    screen.Loop(main_component_split);
 
     return 0;
 }
