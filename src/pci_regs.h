@@ -1139,6 +1139,39 @@ struct PciECap
 } __attribute__((packed, aligned(4)));
 static_assert(sizeof(PciECap) == 0x3c);
 
+struct RegMSIxMsgCtrl
+{
+    uint16_t table_size : 11;
+    uint16_t rsvd       : 3;
+    uint16_t func_mask  : 1;
+    uint16_t msix_ena   : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegMSIxMsgCtrl) == 0x2);
+
+struct RegMSIxTblOffId
+{
+    uint32_t tbl_bar_entry : 3;
+    uint32_t tbl_off       : 29;
+} __attribute__((packed));
+static_assert(sizeof(RegMSIxTblOffId) == 0x4);
+
+struct RegMSIxPBAOffId
+{
+    uint32_t pba_bar_entry : 3;
+    uint32_t pba_off       : 29;
+} __attribute__((packed));
+static_assert(sizeof(RegMSIxPBAOffId) == 0x4);
+
+// PCI MSI-X capability structure
+struct PciMSIxCap
+{
+    CompatCapHdr    hdr;        // 0x0
+    RegMSIxMsgCtrl  msg_ctrl;   // 0x2
+    RegMSIxTblOffId tbl_off_id; // 0x4
+    RegMSIxPBAOffId pba_off_id; // 0x8
+} __attribute__((packed));
+static_assert(sizeof(PciMSIxCap) == 0xc);
+
 // various formatting helpers
 enum class LinkSpeedRepType
 {

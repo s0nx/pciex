@@ -3455,6 +3455,63 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
     return {std::move(upper), std::move(lower)};
 }
 
+static capability_comp_ctx
+CompatMSIxCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
+              std::vector<uint8_t> &vis)
+{
+    Components upper, lower;
+    constexpr auto reg_per_cap = 3;
+    size_t i = vis.size();
+    std::ranges::fill_n(std::back_inserter(vis), reg_per_cap, 0);
+
+    auto off = std::get<3>(cap);
+    auto msix_cap = reinterpret_cast<const PciMSIxCap *>(dev->cfg_space_.get() + off);
+
+    upper.push_back(CapDelimComp(cap));
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("Message Control +0x2", &vis[i++]),
+                        CapHdrComp(msix_cap->hdr)
+                    }));
+
+    auto msix_mc_content = vbox({
+        RegFieldVerbElem(0, 10, fmt::format(" Table size: {:#04x}", msix_cap->msg_ctrl.table_size + 1),
+                         msix_cap->msg_ctrl.table_size),
+        RegFieldCompElem(11, 13),
+        RegFieldCompElem(14, 14, " Function mask", msix_cap->msg_ctrl.func_mask),
+        RegFieldCompElem(15, 15, " MSI-X enable", msix_cap->msg_ctrl.msix_ena)
+    });
+    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] MSI-X", off),
+                                     "Message Control +0x2", std::move(msix_mc_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("Table Off/BIR +0x4", &vis[i++]),
+                    }));
+
+    auto msix_tbl_off_bir_content = vbox({
+        RegFieldCompElem(0, 2,  fmt::format("    BAR: {:#x}", msix_cap->tbl_off_id.tbl_bar_entry)),
+        RegFieldCompElem(3, 31, fmt::format(" Offset: {:#08x}", msix_cap->tbl_off_id.tbl_off << 3)),
+    });
+
+    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] MSI-X", off),
+                                     "Message Table Off/BIR +0x4",
+                                     std::move(msix_tbl_off_bir_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("PBA Off/BIR +0x8", &vis[i++]),
+                    }));
+
+    auto msix_pba_off_bir_content = vbox({
+        RegFieldCompElem(0, 2,  fmt::format("    BAR: {:#x}", msix_cap->pba_off_id.pba_bar_entry)),
+        RegFieldCompElem(3, 31, fmt::format(" Offset: {:#08x}", msix_cap->pba_off_id.pba_off << 3)),
+    });
+
+    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] MSI-X", off),
+                                     "PBA Off/BIR +0x8",
+                                     std::move(msix_pba_off_bir_content), &vis[i - 1]));
+
+    return {std::move(upper), std::move(lower)};
+}
+
 
 // Create clickable components and descriptions for capability
 // in PCI-compatible config space (first 256 bytes)
@@ -3499,7 +3556,7 @@ CompatCapComponents(const pci::PciDevBase *dev, const CompatCapID cap_id,
     case CompatCapID::pci_express:
         return CompatPCIECap(dev, cap, vis);
     case CompatCapID::msix:
-        return NotImplCap();
+        return CompatMSIxCap(dev, cap, vis);
     case CompatCapID::sata_data_idx_conf:
         return NotImplCap();
     case CompatCapID::af:
