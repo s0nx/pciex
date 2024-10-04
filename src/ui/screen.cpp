@@ -13,11 +13,11 @@ void CanvasVisibleArea::shift(CnvShiftDir dir, Box &box)
     switch (dir) {
         case CnvShiftDir::UP:
             if (off_y_ > 0)
-                off_y_ -= 1;
+                off_y_ -= 2;
             break;
         case CnvShiftDir::LEFT:
             if (off_x_ > 0)
-                off_x_ -= 1;
+                off_x_ -= 2;
             break;
         case CnvShiftDir::DOWN:
             if (box.y_max >= y_max_) {
@@ -31,7 +31,7 @@ void CanvasVisibleArea::shift(CnvShiftDir dir, Box &box)
             }
 
             if (off_y_ + box.y_max < y_max_) {
-                off_y_ += 1;
+                off_y_ += 2;
             }
 
             break;
@@ -47,7 +47,7 @@ void CanvasVisibleArea::shift(CnvShiftDir dir, Box &box)
             }
 
             if (off_x_ + box.x_max < x_max_) {
-                off_x_ += 1;
+                off_x_ += 2;
             }
             break;
         default:
@@ -745,12 +745,12 @@ bool ScrollableComp::OnEvent(Event event) {
     int selected_old = selected_;
     if (event == Event::ArrowUp || event == Event::Character('k') ||
         (event.is_mouse() && event.mouse().button == Mouse::WheelUp)) {
-        selected_ -= 2;
+        selected_ -= 3;
     }
 
     if ((event == Event::ArrowDown || event == Event::Character('j') ||
         (event.is_mouse() && event.mouse().button == Mouse::WheelDown))) {
-        selected_ += 2;
+        selected_ += 3;
     }
 
     if (event == Event::PageDown)
