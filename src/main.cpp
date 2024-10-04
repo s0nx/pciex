@@ -71,7 +71,7 @@ int main()
         .back = pci_regs_component,
         .direction = ftxui::Direction::Left,
         .main_size = &right_pane_size,
-        .separator_func = [] { return ftxui::separatorDouble(); }
+        .separator_func = [] { return ftxui::separatorHeavy(); }
     });
 
     bool show_help = false;
