@@ -337,16 +337,19 @@ Element PCITopoUIComp::Render()
 
 bool PCITopoUIComp::OnEvent(Event event)
 {
-    hovered_ = box_.Contain(event.mouse().x, event.mouse().y);
+    if (event.is_mouse())
+    {
+        hovered_ = box_.Contain(event.mouse().x, event.mouse().y);
 
-    // XXX: is it necessary ?
-    //if (!CaptureMouse(event))
-    //    return false;
+        // XXX: is it necessary ?
+        //if (!CaptureMouse(event))
+        //    return false;
 
-    if (hovered_)
-        TakeFocus();
-    else
-        return false;
+        if (hovered_)
+            TakeFocus();
+        else
+            return false;
+    }
 
     auto area = canvas_.GetVisibleAreaDesc();
 
@@ -3634,13 +3637,48 @@ void PCIRegsComponent::FinalizeComponent()
                hscroll_indicator | frame;
     });
 
+    auto upper_comp_hoverable = MakeBorderedHoverComp(upper_comp_renderer);
+    auto lower_comp_hoverable = MakeBorderedHoverComp(lower_comp);
+
     split_comp_ = ResizableSplit({
-            .main = upper_comp_renderer,
-            .back = lower_comp,
+            .main = upper_comp_hoverable,
+            .back = lower_comp_hoverable,
             .direction = Direction::Up,
             .main_size = &split_off_,
             .separator_func = [] { return separatorHeavy(); }
     });
+}
+
+Element BorderedHoverComp::Render()
+{
+    const bool is_focused = Focused();
+    const bool is_active = Active();
+
+    auto focus_mgmt = is_focused ? ftxui::focus :
+                      is_active ? ftxui::select :
+                      ftxui::nothing;
+
+    Element base_rendered_elem = ComponentBase::Render();
+    base_rendered_elem |= focus_mgmt;
+
+    if (is_focused)
+        base_rendered_elem |= borderStyled(BorderStyle::HEAVY, Color::Green);
+    else if (hovered_)
+        base_rendered_elem |= borderStyled(Color::Palette16::White);
+
+    return base_rendered_elem | reflect(box_);
+}
+
+bool BorderedHoverComp::OnEvent(Event event)
+{
+    if (event.is_mouse())
+    {
+        const bool hover = box_.Contain(event.mouse().x, event.mouse().y) &&
+                           CaptureMouse(event);
+        hovered_ = hover;
+    }
+
+    return ComponentBase::OnEvent(event);
 }
 
 static Element GetLogo()

@@ -61,11 +61,13 @@ int main()
     auto [width, height] = ui::GetCanvasSizeEstimate(topology, ui::ElemReprMode::Compact);
     auto topo_canvas = ui::MakeTopologyComp(width, height, topology);
 
+    auto topo_canvas_bordered = ui::MakeBorderedHoverComp(topo_canvas);
+
     auto pci_regs_component = std::make_shared<ui::PCIRegsComponent>(topo_canvas);
     int right_pane_size = 60;
 
     auto main_component_split = ftxui::ResizableSplit({
-        .main = topo_canvas,
+        .main = topo_canvas_bordered,
         .back = pci_regs_component,
         .direction = ftxui::Direction::Left,
         .main_size = &right_pane_size,

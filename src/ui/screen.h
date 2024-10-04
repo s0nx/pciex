@@ -351,6 +351,25 @@ struct PCIRegsComponent : ftxui::ComponentBase
 
 };
 
+// Wrapper to draw border around component on hover/select.
+// Looks fairly similar to @Hoverable class
+class BorderedHoverComp : public ftxui::ComponentBase
+{
+public:
+    BorderedHoverComp(ftxui::Component child) { Add(child);  }
+private:
+    ftxui::Element Render() override final;
+    bool           OnEvent(ftxui::Event event) override;
+
+    ftxui::Box box_;
+    bool       hovered_;
+};
+
+inline ftxui::Component MakeBorderedHoverComp(ftxui::Component child)
+{
+    return ftxui::Make<BorderedHoverComp>(child);
+}
+
 ftxui::Component GetHelpScreenComp(std::function<void()>);
 
 } // namespace ui
