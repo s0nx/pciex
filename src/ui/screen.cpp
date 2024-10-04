@@ -416,6 +416,43 @@ bool PCITopoUIComp::OnEvent(Event event)
 
         return true;
     }
+
+    // special events handlers
+
+    // scroll across the canvas with arrows
+    if (event == Event::ArrowDown) {
+        area->shift(CnvShiftDir::DOWN, box_);
+        return true;
+    }
+
+    if (event == Event::ArrowUp) {
+        area->shift(CnvShiftDir::UP, box_);
+        return true;
+    }
+
+    if (event == Event::ArrowLeft) {
+        area->shift(CnvShiftDir::LEFT, box_);
+        return true;
+    }
+
+    // FIXME: with this mapping it's no longer possible to switch to right panes
+    if (event == Event::ArrowRight) {
+        area->shift(CnvShiftDir::RIGHT, box_);
+        return true;
+    }
+
+    // select next/prev device via Ctrl + 'Up'/'Down'
+    if (event == Event::ArrowUpCtrl) {
+        block_map_.SelectNextPrevDevice(canvas_, false);
+        return true;
+    }
+
+    if (event == Event::ArrowDownCtrl) {
+        block_map_.SelectNextPrevDevice(canvas_, true);
+        return true;
+    }
+
+
     return false;
 }
 
@@ -3724,6 +3761,8 @@ static Element GetHelpElem()
     R"(                                                              )",
     R"( Pane navigation:                                             )",
     R"(  [h, j, k, l] or arrows - scroll left, down, up, right       )",
+    R"(  ------------                                                )",
+    R"(   ctrl + Up/Down                                             )",
     R"(  shift + j/k - select next/previous device in the hierarchy  )",
     R"(                can also be selected with mouse               )",
     R"(                (device tree pane only)                       )",
