@@ -75,7 +75,6 @@ int main()
     });
 
     bool show_help = false;
-    auto hide_modal = [&] { show_help = false; };
 
     main_component_split |= ftxui::CatchEvent([&](ftxui::Event ev) {
         if (ev.is_character()) {
@@ -86,10 +85,12 @@ int main()
         return false;
     });
 
-    auto help_component = ui::GetHelpScreenComp(hide_modal);
+    auto help_component = ui::GetHelpScreenComp();
     help_component |= ftxui::CatchEvent([&](ftxui::Event ev) {
-        if (ev.is_character()) {
-            if (ev.character()[0] == '?')
+        if (ev == ftxui::Event::Escape ||
+            (ev.is_character() &&
+             (ev.character()[0] == '?' || ev.character()[0] == 'q')))
+        {
                 show_help = show_help ? false : true;
         }
 

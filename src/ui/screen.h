@@ -370,6 +370,6 @@ inline ftxui::Component MakeBorderedHoverComp(ftxui::Component child)
     return ftxui::Make<BorderedHoverComp>(child);
 }
 
-ftxui::Component GetHelpScreenComp(std::function<void()>);
+ftxui::Component GetHelpScreenComp();
 
 } // namespace ui

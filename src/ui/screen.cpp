@@ -3718,6 +3718,20 @@ bool BorderedHoverComp::OnEvent(Event event)
     return ComponentBase::OnEvent(event);
 }
 
+static Element GetVersion()
+{
+#ifndef PCIEX_CURRENT_VERSION
+#define PCIEX_CURRENT_VERSION "<undef>"
+#endif
+
+#ifndef PCIEX_CURRENT_HASH
+#define PCIEX_CURRENT_HASH    "<undef>"
+#endif
+
+    return text(fmt::format(" ver: {} {}", PCIEX_CURRENT_VERSION,
+                                           PCIEX_CURRENT_HASH));
+}
+
 static Element GetLogo()
 {
   std::vector<std::string> lvt {
@@ -3733,6 +3747,8 @@ static Element GetLogo()
 
   for (const auto &el : lvt)
     elems.push_back(text(el) | bold);
+
+  elems.push_back(GetVersion());
 
   auto logo = vbox(std::move(elems));
   logo |= bgcolor(LinearGradient()
@@ -3772,8 +3788,10 @@ static Element GetHelpElem()
     R"(  left click / enter          - show/hide detailed info       )",
     R"(                                (device regs/caps pane only)  )",
     R"( Other hotkeys:                                               )",
-    R"(  c/v - device tree pane compact/verbose drawing mode switch  )",
-    R"(  ?   - help open/close                                       )",
+    R"(      c/v - device tree pane compact/verbose                  )",
+    R"(            drawing mode switch                               )",
+    R"(        ? - help open                                         )",
+    R"(  ?/Esc/q - help close                                        )",
     R"(                                                              )"
   };
 
@@ -3784,19 +3802,21 @@ static Element GetHelpElem()
   return vbox(std::move(elems));
 }
 
-Component GetHelpScreenComp(std::function<void()> hide_fn)
+Component GetHelpScreenComp()
 {
     auto help_comp = ftxui::Renderer([&] {
         return ftxui::vbox({
           GetLogo() | center,
           separatorEmpty(),
           GetHelpElem()
-        }) | borderDouble;
+        });
     });
 
-    return Container::Vertical({
-        std::move(help_comp),
-        Button("[ X ]", hide_fn, ui::RegButtonDefaultOption())
+    auto scrollable_help_comp = MakeScrollableComp(help_comp);
+    return Renderer(scrollable_help_comp, [=] {
+        return vbox({
+            scrollable_help_comp->Render(),
+        }) | borderRounded;
     });
 }
 
