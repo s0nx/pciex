@@ -2074,6 +2074,15 @@ void PCIRegsComponent::AddCompatHeaderRegs()
                     type0_compat_reg_cnt : type1_compat_reg_cnt;
     std::ranges::fill_n(std::back_inserter(vis_state_), e_cnt, 0);
 
+    // Add PCI-compatible config space header delimiter
+    upper_split_comp_->Add(Renderer([] {
+        return hbox({
+            separatorLight() | flex,
+            text("[compatible cfg space header]") | bold | inverted | center,
+            separatorLight() | flex
+        });
+    }));
+
     size_t i = 0;
 
     // Some registers in PCI-compatible config space are identical for both type 0 and type 1 devices
@@ -2392,16 +2401,16 @@ CapDelimComp(const pci::CapDesc &cap)
     std::string label;
     if (type == CapType::compat) {
         auto compat_cap_type = CompatCapID {std::get<1>(cap)};
-        label = fmt::format(" {} [compat] ", CompatCapName(compat_cap_type));
+        label = fmt::format(">>> {} [compat] ", CompatCapName(compat_cap_type));
     } else {
         auto ext_cap_type = ExtCapID {std::get<1>(cap)};
-        label = fmt::format(" {} [extended] ", ExtCapName(ext_cap_type));
+        label = fmt::format(">>> {} [extended] ", ExtCapName(ext_cap_type));
     }
 
     auto comp = Renderer([=] {
         return vbox({
             hbox({
-                text(label),
+                text(label) | inverted | bold,
                 text(fmt::format("[{:#02x}]", off)) | bold |
                 bgcolor(Color::Magenta) | color(Color::Grey15)
             }),
