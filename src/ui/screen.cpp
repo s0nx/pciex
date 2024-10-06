@@ -3812,11 +3812,13 @@ Component GetHelpScreenComp()
         });
     });
 
+    // XXX: Seems like @Modal component rendering doesn't
+    // clear background color explicitly, so it needs to be set here
     auto scrollable_help_comp = MakeScrollableComp(help_comp);
     return Renderer(scrollable_help_comp, [=] {
         return vbox({
             scrollable_help_comp->Render(),
-        }) | borderRounded;
+        }) | borderRounded | bgcolor(Color::Grey15);
     });
 }
 
