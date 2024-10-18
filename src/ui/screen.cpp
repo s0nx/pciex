@@ -3693,6 +3693,16 @@ void PCIRegsComponent::FinalizeComponent()
             .main_size = &split_off_,
             .separator_func = [] { return separatorHeavy(); }
     });
+
+    split_comp_ |= CatchEvent([=](Event ev) {
+        if (ev == Event::F2)
+                upper_comp_hoverable->TakeFocus();
+        else if (ev == Event::F3)
+                lower_comp_hoverable->TakeFocus();
+
+        return false;
+    });
+
 }
 
 Element BorderedHoverComp::Render()
@@ -3785,6 +3795,10 @@ static Element GetHelpElem()
     R"(  TAB/h/k/left click - move focus to specific pane            )",
     R"(                                                              )",
     R"( Pane navigation:                                             )",
+    R"(  Fx keys - move focus to specific pane:                      )",
+    R"(     F1 - device tree pane                                    )",
+    R"(     F2 - device regs/caps pane                               )",
+    R"(     F3 - reg/cap detailed info pane                          )",
     R"(  [h, j, k, l] or arrows - scroll left, down, up, right       )",
     R"(  ------------                                                )",
     R"(   ctrl + Up/Down                                             )",

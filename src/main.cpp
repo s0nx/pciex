@@ -82,6 +82,11 @@ int main()
                 show_help = show_help ? false : true;
         }
 
+        if (ev == ftxui::Event::F1)
+            topo_canvas_bordered->TakeFocus();
+        else if (ev == ftxui::Event::F2 || ev == ftxui::Event::F3)
+            pci_regs_component->TakeFocus();
+
         return false;
     });
 
