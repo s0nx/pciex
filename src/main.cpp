@@ -64,13 +64,13 @@ int main()
     auto topo_canvas_bordered = ui::MakeBorderedHoverComp(topo_canvas);
 
     auto pci_regs_component = std::make_shared<ui::PCIRegsComponent>(topo_canvas);
-    int right_pane_size = 60;
+    int vert_split_off = 60;
 
     auto main_component_split = ftxui::ResizableSplit({
         .main = topo_canvas_bordered,
         .back = pci_regs_component,
         .direction = ftxui::Direction::Left,
-        .main_size = &right_pane_size,
+        .main_size = &vert_split_off,
         .separator_func = [] { return ftxui::separatorHeavy(); }
     });
 
@@ -82,9 +82,18 @@ int main()
                 show_help = show_help ? false : true;
         }
 
+        // handle pane selection
         if (ev == ftxui::Event::F1)
             topo_canvas_bordered->TakeFocus();
         else if (ev == ftxui::Event::F2 || ev == ftxui::Event::F3)
+            pci_regs_component->TakeFocus();
+
+        // handle pane resize
+        if (ev == ftxui::Event::AltH)
+            ui::SeparatorShift(ui::UiElemShiftDir::LEFT, &vert_split_off);
+        if (ev == ftxui::Event::AltL)
+            ui::SeparatorShift(ui::UiElemShiftDir::RIGHT, &vert_split_off);
+        if (ev == ftxui::Event::AltJ || ev == ftxui::Event::AltK)
             pci_regs_component->TakeFocus();
 
         return false;

@@ -8,18 +8,18 @@ using namespace ftxui;
 
 namespace ui {
 
-void CanvasVisibleArea::shift(CnvShiftDir dir, Box &box)
+void CanvasVisibleArea::shift(UiElemShiftDir dir, Box &box)
 {
     switch (dir) {
-        case CnvShiftDir::UP:
+        case UiElemShiftDir::UP:
             if (off_y_ > 0)
                 off_y_ -= 2;
             break;
-        case CnvShiftDir::LEFT:
+        case UiElemShiftDir::LEFT:
             if (off_x_ > 0)
                 off_x_ -= 2;
             break;
-        case CnvShiftDir::DOWN:
+        case UiElemShiftDir::DOWN:
             if (box.y_max >= y_max_) {
                 off_y_ = 0;
                 return;
@@ -35,7 +35,7 @@ void CanvasVisibleArea::shift(CnvShiftDir dir, Box &box)
             }
 
             break;
-        case CnvShiftDir::RIGHT:
+        case UiElemShiftDir::RIGHT:
             if (box.x_max >= x_max_) {
                 off_x_ = 0;
                 return;
@@ -359,16 +359,16 @@ bool PCITopoUIComp::OnEvent(Event event)
 
         if (event.mouse().button == Mouse::WheelDown) {
             if (event.mouse().shift)
-                area->shift(CnvShiftDir::RIGHT, box_);
+                area->shift(UiElemShiftDir::RIGHT, box_);
             else
-                area->shift(CnvShiftDir::DOWN, box_);
+                area->shift(UiElemShiftDir::DOWN, box_);
         }
 
         if (event.mouse().button == Mouse::WheelUp) {
             if (event.mouse().shift)
-                area->shift(CnvShiftDir::LEFT, box_);
+                area->shift(UiElemShiftDir::LEFT, box_);
             else
-                area->shift(CnvShiftDir::UP, box_);
+                area->shift(UiElemShiftDir::UP, box_);
         }
 
         if (event.mouse().button == Mouse::Left)
@@ -385,16 +385,16 @@ bool PCITopoUIComp::OnEvent(Event event)
         switch (event.character()[0]) {
         // scrolling
         case 'j':
-            area->shift(CnvShiftDir::DOWN, box_);
+            area->shift(UiElemShiftDir::DOWN, box_);
             break;
         case 'k':
-            area->shift(CnvShiftDir::UP, box_);
+            area->shift(UiElemShiftDir::UP, box_);
             break;
         case 'h':
-            area->shift(CnvShiftDir::LEFT, box_);
+            area->shift(UiElemShiftDir::LEFT, box_);
             break;
         case 'l':
-            area->shift(CnvShiftDir::RIGHT, box_);
+            area->shift(UiElemShiftDir::RIGHT, box_);
             break;
         // change canvas elems representation mode
         case 'c':
@@ -421,23 +421,23 @@ bool PCITopoUIComp::OnEvent(Event event)
 
     // scroll across the canvas with arrows
     if (event == Event::ArrowDown) {
-        area->shift(CnvShiftDir::DOWN, box_);
+        area->shift(UiElemShiftDir::DOWN, box_);
         return true;
     }
 
     if (event == Event::ArrowUp) {
-        area->shift(CnvShiftDir::UP, box_);
+        area->shift(UiElemShiftDir::UP, box_);
         return true;
     }
 
     if (event == Event::ArrowLeft) {
-        area->shift(CnvShiftDir::LEFT, box_);
+        area->shift(UiElemShiftDir::LEFT, box_);
         return true;
     }
 
     // FIXME: with this mapping it's no longer possible to switch to right panes
     if (event == Event::ArrowRight) {
-        area->shift(CnvShiftDir::RIGHT, box_);
+        area->shift(UiElemShiftDir::RIGHT, box_);
         return true;
     }
 
@@ -3694,11 +3694,17 @@ void PCIRegsComponent::FinalizeComponent()
             .separator_func = [] { return separatorHeavy(); }
     });
 
+    auto cur_hor_split_off = &split_off_;
     split_comp_ |= CatchEvent([=](Event ev) {
         if (ev == Event::F2)
                 upper_comp_hoverable->TakeFocus();
         else if (ev == Event::F3)
                 lower_comp_hoverable->TakeFocus();
+
+        if (ev == ftxui::Event::AltJ)
+            ui::SeparatorShift(ui::UiElemShiftDir::DOWN, cur_hor_split_off);
+        if (ev == ftxui::Event::AltK)
+            ui::SeparatorShift(ui::UiElemShiftDir::UP, cur_hor_split_off);
 
         return false;
     });
@@ -3790,8 +3796,9 @@ static Element GetHelpElem()
     R"(                  │ reg / cap                                 )",
     R"(                  │ detailed info                             )",
     R"(                                                              )",
-    R"(  resize pane(s) - drag the border while holding left mouse   )",
-    R"(                   button                                     )",
+    R"(  resize pane(s) - drag the border using the mouse            )",
+    R"(                   or                                         )",
+    R"(                   Alt + [h, j, k, l]                         )",
     R"(  TAB/h/k/left click - move focus to specific pane            )",
     R"(                                                              )",
     R"( Pane navigation:                                             )",
@@ -3843,6 +3850,27 @@ Component GetHelpScreenComp()
             scrollable_help_comp->Render(),
         }) | borderRounded | bgcolor(Color::Grey15);
     });
+}
+
+void SeparatorShift(UiElemShiftDir direction, int *cur_sep_pos)
+{
+    auto cur_term_dim = Terminal::Size();
+
+    switch (direction) {
+    case UiElemShiftDir::UP:
+    case UiElemShiftDir::LEFT:
+        if (*cur_sep_pos > 10)
+            *cur_sep_pos -= 5;
+        break;
+    case UiElemShiftDir::DOWN:
+        if (*cur_sep_pos + 10 < cur_term_dim.dimy)
+            *cur_sep_pos += 5;
+        break;
+    case UiElemShiftDir::RIGHT:
+        if (*cur_sep_pos + 10 < cur_term_dim.dimx)
+            *cur_sep_pos += 5;
+        break;
+    }
 }
 
 } //namespace ui

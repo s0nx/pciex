@@ -14,7 +14,7 @@ extern vm::VmallocStats vm_info;
 
 namespace ui {
 
-enum class CnvShiftDir
+enum class UiElemShiftDir
 {
     UP,
     DOWN,
@@ -29,7 +29,7 @@ struct CanvasVisibleArea
     int off_x_ {0};
     int off_y_ {0};
 
-    void shift(CnvShiftDir dir, ftxui::Box &);
+    void shift(UiElemShiftDir dir, ftxui::Box &);
 };
 
 const auto NoStyle = [](ftxui::Pixel &){};
@@ -371,5 +371,7 @@ inline ftxui::Component MakeBorderedHoverComp(ftxui::Component child)
 }
 
 ftxui::Component GetHelpScreenComp();
+
+void SeparatorShift(UiElemShiftDir direction, int *cur_sep_pos);
 
 } // namespace ui
