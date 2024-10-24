@@ -9,41 +9,6 @@ if(NOT FMT_LIB)
     message(FATAL_ERROR "fmt library has not been found")
 endif()
 
-find_package(Git)
-
-if (GIT_EXECUTABLE)
-    execute_process(
-            COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=0
-            OUTPUT_VARIABLE GIT_DESCRIBE_VERSION
-            RESULT_VARIABLE GIT_DESCRIBE_ERROR_CODE
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    if (NOT GIT_DESCRIBE_ERROR_CODE)
-        set(PCIEX_VERSION ${GIT_DESCRIBE_VERSION})
-    endif ()
-    execute_process(
-            COMMAND ${GIT_EXECUTABLE} log -1 --format=%h
-            OUTPUT_VARIABLE GIT_CURRENT_HASH
-            RESULT_VARIABLE GIT_HASH_ERROR_CODE
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    if (NOT GIT_HASH_ERROR_CODE)
-        set(PCIEX_HASH ${GIT_CURRENT_HASH})
-    endif ()
-endif ()
-
-if (NOT DEFINED PCIEX_VERSION)
-    set(PCIEX_VERSION 0.0.0)
-    message(WARNING "Failed to determine VERSION from Git tags. Using default version \"${PCIEX_VERSION}\".")
-endif ()
-if (NOT DEFINED PCIEX_HASH)
-    set(PCIEX_HASH "0000000")
-    message(WARNING "Failed to determine HASH from Git logs. Using default hash \"${PCIEX_HASH}\".")
-endif ()
-
-add_definitions(-DPCIEX_CURRENT_VERSION="${PCIEX_VERSION}")
-add_definitions(-DPCIEX_CURRENT_HASH="${PCIEX_HASH}")
-
 # FTXUI
 include(FetchContent)
 
@@ -60,10 +25,8 @@ if(NOT ftxui_POPULATED)
     add_subdirectory(${ftxui_SOURCE_DIR} ${ftxui_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-
 project(
     pciex
-    VERSION ${PCIEX_VERSION}
     LANGUAGES CXX
 )
 
@@ -71,6 +34,9 @@ add_executable(pciex)
 
 # includes
 target_include_directories(pciex PRIVATE src)
+
+# include output dir, where pciex_version.h is generated
+target_include_directories(pciex PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 # src
 target_sources(pciex PRIVATE
@@ -93,3 +59,19 @@ target_link_libraries(pciex
     PRIVATE ftxui::dom
     PRIVATE ftxui::component
 )
+
+# creates pciex_version.h using cmake script
+add_custom_command(
+    OUTPUT git_verhdr_gen
+    COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+                         -P ${CMAKE_CURRENT_SOURCE_DIR}/gitver.cmake
+)
+
+# custom target, which is always considered out ouf date
+add_custom_target(
+    gitverhdr ALL
+    DEPENDS git_verhdr_gen
+)
+
+# explicitly say that the executable depends on the gitverhdr
+add_dependencies(pciex gitverhdr)

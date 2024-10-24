@@ -3,6 +3,7 @@
 
 #include <bitset>
 #include "screen.h"
+#include "pciex_version.h"
 
 using namespace ftxui;
 
@@ -3745,16 +3746,8 @@ bool BorderedHoverComp::OnEvent(Event event)
 
 static Element GetVersion()
 {
-#ifndef PCIEX_CURRENT_VERSION
-#define PCIEX_CURRENT_VERSION "<undef>"
-#endif
-
-#ifndef PCIEX_CURRENT_HASH
-#define PCIEX_CURRENT_HASH    "<undef>"
-#endif
-
-    return text(fmt::format(" ver: {} {}", PCIEX_CURRENT_VERSION,
-                                           PCIEX_CURRENT_HASH));
+    return text(fmt::format(" ver: {} {}", pciex_current_version,
+                                           pciex_current_hash));
 }
 
 static Element GetLogo()
