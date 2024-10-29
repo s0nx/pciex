@@ -148,17 +148,18 @@ void PciDevBase::parse_capabilities()
 
 void PciDevBase::dump_capabilities() noexcept
 {
-    logger.info("[{:02x}:{:02x}.{:x}]: {} capabilities >>>", bus_, dev_, func_, caps_.size());
+    logger.log(Verbosity::INFO, "[{:02x}:{:02x}.{:x}]: {} capabilities >>>",
+               bus_, dev_, func_, caps_.size());
     for (size_t i = 0; auto &cap : caps_) {
         auto cap_type = std::get<0>(cap);
 
         if (cap_type == CapType::compat) {
             auto compat_cap_type = CompatCapID{std::get<1>(cap)};
-            logger.raw("[#{:2} {:#03x}] -> '{}'", i++, std::get<3>(cap),
+            logger.log(Verbosity::RAW, "[#{:2} {:#03x}] -> '{}'", i++, std::get<3>(cap),
                        CompatCapName(compat_cap_type));
         } else {
             auto ext_cap_type = ExtCapID{std::get<1>(cap)};
-            logger.raw("[#{:2} {:#03x}] -> (EXT, ver {}) '{}'", i++, std::get<3>(cap),
+            logger.log(Verbosity::RAW, "[#{:2} {:#03x}] -> (EXT, ver {}) '{}'", i++, std::get<3>(cap),
                        std::get<2>(cap), ExtCapName(ext_cap_type));
         }
     }
@@ -363,7 +364,7 @@ void PciType0Dev::ParseIDs(PciIdParser &parser)
 void PciType0Dev::print_data() const noexcept {
     auto vid    = get_vendor_id();
     auto dev_id = get_device_id();
-    logger.info("[{:04}:{:02x}:{:02x}.{:x}] -> TYPE 0: cfg_size {:4} vendor {:2x} | dev {:2x}",
+    logger.log(Verbosity::INFO, "[{:04}:{:02x}:{:02x}.{:x}] -> TYPE 0: cfg_size {:4} vendor {:2x} | dev {:2x}",
                dom_, bus_, dev_, func_, e_to_type(cfg_type_), vid, dev_id);
 }
 
@@ -465,7 +466,8 @@ uint32_t PciType1Dev::get_bridge_ctl() const noexcept
 void PciType1Dev::print_data() const noexcept {
     auto dev_id = get_device_id();
     auto vid = *reinterpret_cast<uint16_t *>(cfg_space_.get() + e_to_type(Type1Cfg::vid));
-    logger.info("[{:04}:{:02x}:{:02x}.{:x}] -> TYPE 1: cfg_size {:4} vendor {:2x} | dev {:2x}",
+    logger.log(Verbosity::INFO,
+               "[{:04}:{:02x}:{:02x}.{:x}] -> TYPE 1: cfg_size {:4} vendor {:2x} | dev {:2x}",
                dom_, bus_, dev_, func_, e_to_type(cfg_type_), vid, dev_id);
 }
 

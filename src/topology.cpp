@@ -27,7 +27,7 @@ void PCITopologyCtx::populate()
         pci_dev->ParseBars();
         pci_dev->ParseIDs(iparser);
         auto drv_name = sysfs::get_driver(dev_path);
-        logger.info("{} driver: {}", pci_dev->dev_id_str_,
+        logger.log(Verbosity::INFO, "{} driver: {}", pci_dev->dev_id_str_,
                     drv_name.empty() ? "<none>" : drv_name);
         devs_.push_back(std::move(pci_dev));
     }
@@ -63,7 +63,7 @@ void PCITopologyCtx::print_bus(const PCIBus &bus, int off)
     for (const auto &dev : bus.devs_) {
         if (dev->type_ == pci::pci_dev_type::TYPE1) {
             auto fmt_str = fmt::format("{:\t>{}} \\--> {}", "", off, dev->dev_id_str_);
-            logger.raw("{}", fmt_str);
+            logger.log(Verbosity::RAW, "{}", fmt_str);
 
             auto type1_dev = dynamic_cast<PciType1Dev *>(dev.get());
             auto sec_bus = buses_.find(type1_dev->get_sec_bus_num());
@@ -73,7 +73,7 @@ void PCITopologyCtx::print_bus(const PCIBus &bus, int off)
 
         } else {
             auto fmt_str = fmt::format("{:\t>{}} \\--> {}", "", off, dev->dev_id_str_);
-            logger.raw("{}", fmt_str);
+            logger.log(Verbosity::RAW, "{}", fmt_str);
         }
     }
 

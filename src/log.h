@@ -16,20 +16,23 @@ enum class Verbosity
     FATAL,
     ERR,
     WARN,
-    INFO
+    INFO,
+    RAW
 };
 
 constexpr auto VerbName(const Verbosity level)
 {
     switch (level) {
         case Verbosity::FATAL:
-            return "FATAL";
+            return "[FATAL]";
         case Verbosity::ERR:
-            return "ERR";
+            return "[  ERR]";
         case Verbosity::WARN:
-            return "WARN";
+            return "[ WARN]";
         case Verbosity::INFO:
-            return "INFO";
+            return "[ INFO]";
+        case Verbosity::RAW:
+            return "      |";
         default:
             return "";
     }
@@ -40,7 +43,7 @@ struct LoggerEx : public CommonEx
     using CommonEx::CommonEx;
 };
 
-extern Verbosity LoggerVerbosity;
+constexpr Verbosity LoggerVerbosity { Verbosity::RAW };
 constexpr char log_dir[] { "/var/log/pciex" };
 
 struct Logger
@@ -69,43 +72,13 @@ struct Logger
     }
 
     template <class... Args>
-    void fatal(fmt::format_string<Args...> s, Args&&... args)
+    void log(const Verbosity verb_lvl, fmt::format_string<Args...> s, Args&&... args)
     {
-        if (LoggerVerbosity >= Verbosity::FATAL)
-            fmt::print(log_file_, "[{:>5}] {}\n", VerbName(Verbosity::FATAL),
+        if (LoggerVerbosity >= verb_lvl) {
+            fmt::print(log_file_, "{:>7} {}\n", VerbName(verb_lvl),
                        fmt::format(s, std::forward<Args>(args)...));
-    }
-
-    template <class... Args>
-    void err(fmt::format_string<Args...> s, Args&&... args)
-    {
-        if (LoggerVerbosity >= Verbosity::ERR)
-            fmt::print(log_file_, "[{:>5}] {}\n", VerbName(Verbosity::ERR),
-                       fmt::format(s, std::forward<Args>(args)...));
-    }
-
-    template <class... Args>
-    void warn(fmt::format_string<Args...> s, Args&&... args)
-    {
-        if (LoggerVerbosity >= Verbosity::WARN)
-            fmt::print(log_file_, "[{:>5}] {}\n", VerbName(Verbosity::WARN),
-                       fmt::format(s, std::forward<Args>(args)...));
-    }
-
-    template <class... Args>
-    void info(fmt::format_string<Args...> s, Args&&... args)
-    {
-        if (LoggerVerbosity >= Verbosity::INFO)
-            fmt::print(log_file_, "[{:>5}] {}\n", VerbName(Verbosity::INFO),
-                       fmt::format(s, std::forward<Args>(args)...));
-    }
-
-    template <class... Args>
-    void raw(fmt::format_string<Args...> s, Args&&... args)
-    {
-        if (LoggerVerbosity >= Verbosity::INFO)
-            fmt::print(log_file_, "      | {}\n",
-                       fmt::format(s, std::forward<Args>(args)...));
+            std::fflush(log_file_);
+        }
     }
 
 };

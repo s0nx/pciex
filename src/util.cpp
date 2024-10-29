@@ -10,10 +10,10 @@ void vm::VmallocStats::AddEntry(const VmallocEntry &entry)
 
 void vm::VmallocStats::DumpStats()
 {
-    logger.info("vmalloc stats dump: >>>");
+    logger.log(Verbosity::INFO, "vmalloc stats dump: >>>");
     for (std::size_t i = 0; const auto &elem : vm_entries_)
     {
-        logger.raw("#{} ::> [ >{:#x} - {:#x}< len: {:#x} pa: {:#x} ]",
+        logger.log(Verbosity::RAW, "#{} ::> [ >{:#x} - {:#x}< len: {:#x} pa: {:#x} ]",
                    i++, elem.start_, elem.end_, elem.len_, elem.pa_);
     }
 }
@@ -32,9 +32,9 @@ vm::VmallocStats::GetMappingInRange(uint64_t pa_start, uint64_t pa_end)
     std::ranges::copy(lb, ub, std::back_inserter(result));
 
     if (!result.empty()) {
-        logger.info("Found VA mapping for PA range [{:#x} - {:#x}]:", pa_start, pa_end);
+        logger.log(Verbosity::INFO, "Found VA mapping for PA range [{:#x} - {:#x}]:", pa_start, pa_end);
         std::ranges::for_each(result, [](const auto &n) {
-                logger.raw("VA [{:#x} - {:#x}] len {:#x}", n.start_, n.end_, n.len_); });
+                logger.log(Verbosity::RAW, "VA [{:#x} - {:#x}] len {:#x}", n.start_, n.end_, n.len_); });
     }
 
     return result;
@@ -53,7 +53,7 @@ void vm::VmallocStats::Parse()
 {
     std::ifstream proc_vminfo(VmallocInfoFile.data(), std::ios::in);
     if (!proc_vminfo.is_open()) {
-        logger.err("Failed to open /proc/vmallocinfo");
+        logger.log(Verbosity::ERR, "Failed to open /proc/vmallocinfo");
         return;
     }
 
@@ -98,7 +98,7 @@ bool sys::IsKptrSet()
     int val;
     std::ifstream ist(KptrSysPath.data(), std::ios::in);
     if (!ist.is_open()) {
-        logger.err("Unable to check 'kptr_restrict' setting");
+        logger.log(Verbosity::ERR, "Unable to check 'kptr_restrict' setting");
         return false;
     } else {
         ist >> val;
@@ -107,7 +107,7 @@ bool sys::IsKptrSet()
     if (val == e_to_type(kptr_mode::REAL_ADDR))
         return true;
 
-    logger.warn("kptr_restrict -> {}: VA mapping info is unavalible", val);
+    logger.log(Verbosity::WARN, "kptr_restrict -> {}: VA mapping info is unavalible", val);
     return false;
 }
 

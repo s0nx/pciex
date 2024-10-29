@@ -12,7 +12,6 @@
 
 #include "ui/screen.h"
 
-Verbosity LoggerVerbosity = Verbosity::INFO;
 Logger logger;
 vm::VmallocStats vm_info;
 
@@ -39,10 +38,10 @@ int main()
         try {
             vm_info.Parse();
         } catch (std::exception &ex) {
-            logger.err("Exception occured while parsing /proc/vmallocinfo: {}", ex.what());
+            logger.log(Verbosity::ERR, "Exception occured while parsing /proc/vmallocinfo: {}", ex.what());
         }
     } else {
-        logger.warn("vmalloced addresses are hidden\n");
+        logger.log(Verbosity::WARN, "vmalloced addresses are hidden\n");
     }
 
     if (vm_info.InfoAvailable())
@@ -52,7 +51,7 @@ int main()
     try {
         topology.populate();
     } catch (std::exception &ex) {
-        logger.fatal("{}", ex.what());
+        logger.log(Verbosity::FATAL, "{}", ex.what());
         std::exit(EXIT_FAILURE);
     }
 

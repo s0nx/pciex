@@ -355,7 +355,7 @@ bool PCITopoUIComp::OnEvent(Event event)
     auto area = canvas_.GetVisibleAreaDesc();
 
     if (event.is_mouse()) {
-        //logger.info("PCITopoUIComp -> mouse event: shift {} meta {} ctrl {}",
+        //logger.log(Verbosity::INFO, "PCITopoUIComp -> mouse event: shift {} meta {} ctrl {}",
         //            event.mouse().shift, event.mouse().meta, event.mouse().control);
 
         if (event.mouse().button == Mouse::WheelDown) {
@@ -381,7 +381,7 @@ bool PCITopoUIComp::OnEvent(Event event)
     }
 
     if (event.is_character()) {
-        //logger.info("PCITopoUIComp -> char event");
+        //logger.log(Verbosity::INFO, "PCITopoUIComp -> char event");
 
         switch (event.character()[0]) {
         // scrolling
@@ -504,7 +504,7 @@ PCITopoUIComp::AddDevice(std::shared_ptr<pci::PciDevBase> dev, uint16_t x, uint1
                                                    device->GetConnPosParent()};
     *y += device->GetHeight();
     if (!block_map_.Insert(device))
-        logger.warn("Failed to add {} device to block tracking map", dev->dev_id_str_);
+        logger.log(Verbosity::WARN, "Failed to add {} device to block tracking map", dev->dev_id_str_);
 
     // figure out max width of useful data on canvas
     auto dev_xpos = std::get<0>(device->points_);
@@ -599,7 +599,7 @@ GetCanvasSizeEstimate(const pci::PCITopologyCtx &ctx, ElemReprMode mode) noexcep
     // Width of the canvas depends on the actual devices placement,
     // so it's a constant for now
     x_size = 500;
-    logger.info("Estimated canvas size: {} x {}", x_size, y_size);
+    logger.log(Verbosity::INFO, "Estimated canvas size: {} x {}", x_size, y_size);
 
     return {x_size, y_size};
 }
@@ -2329,7 +2329,7 @@ void PCIRegsComponent::AddCompatHeaderRegs()
                                                                       &vis_state_[i - 1]));
     }
 
-    logger.info("{} -> vis_state size {} i = {}", cur_dev_->dev_id_str_, vis_state_.size(), i);
+    logger.log(Verbosity::INFO, "{} -> vis_state size {} i = {}", cur_dev_->dev_id_str_, vis_state_.size(), i);
 }
 
 // Create an element representing a hex dump of some buffer
@@ -2540,7 +2540,7 @@ CompatVendorSpecCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
             auto virtio_struct = reinterpret_cast<const virtio::VirtIOPCICap *>
                                  (dev->cfg_space_.get() + off);
             if (virtio_struct->cfg_type > e_to_type(virtio::VirtIOCapID::cap_id_max)) {
-                logger.warn("{}: unexpected virtio cfg type ({}) in vendor spec cap (off {:02x})",
+                logger.log(Verbosity::WARN, "{}: unexpected virtio cfg type ({}) in vendor spec cap (off {:02x})",
                             dev->dev_id_str_, virtio_struct->cfg_type, off);
             } else {
                 content_elems.push_back(separatorEmpty());
