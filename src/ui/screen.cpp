@@ -627,6 +627,7 @@ Element PushPullButton::Render()
         is_pressed_,
         active,
         focused_or_hover,
+        -1
     };
 
     auto element = transform(state);
