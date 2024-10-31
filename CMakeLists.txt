@@ -1,13 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
 
-find_library(FMT_LIB
-    NAMES fmt
-    PATHS /lib /usr/lib /usr/lib64
+project(
+    pciex
+    LANGUAGES CXX
 )
 
-if(NOT FMT_LIB)
-    message(FATAL_ERROR "fmt library has not been found")
-endif()
+# fmtlib
+find_package(fmt REQUIRED)
 
 # FTXUI
 include(FetchContent)
@@ -24,11 +23,6 @@ if(NOT ftxui_POPULATED)
     FetchContent_Populate(ftxui)
     add_subdirectory(${ftxui_SOURCE_DIR} ${ftxui_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
-
-project(
-    pciex
-    LANGUAGES CXX
-)
 
 add_executable(pciex)
 
