@@ -4,22 +4,10 @@
 #pragma once
 
 #include <unordered_map>
-#include <span>
-#include <cstdint>
 #include <string_view>
 #include <memory>
 
-#include "util.h"
-#include "log.h"
-
-extern Logger logger;
-
 namespace pci {
-
-struct IdParseEx : public CommonEx
-{
-    using CommonEx::CommonEx;
-};
 
 /* Cached PCI device db entry of particular vendor */
 struct CachedDbDevEntry

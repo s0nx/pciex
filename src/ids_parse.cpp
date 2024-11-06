@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2023-2024 Petr Vyazovik <xen@f-m.fm>
 
+#include <cstdint>
+#include <span> // TODO: drop this
+
 #include "ids_parse.h"
+#include "log.h"
+
+extern Logger logger;
 
 using namespace pci;
 
@@ -16,13 +22,13 @@ PciIdParser::PciIdParser()
 
     auto db_fd = std::fopen(ids_db_path.c_str(), "r");
     if (!db_fd)
-        throw IdParseEx(fmt::format("Failed to open PCI ids db {}", ids_db_path.string()));
+        throw std::runtime_error(fmt::format("Failed to open PCI ids db {}", ids_db_path.string()));
 
     auto res = std::fread(buf_.get(), db_size_, 1, db_fd);
     if (res != 1)
     {
         std::fclose(db_fd);
-        throw IdParseEx(fmt::format("Failed to read PCI ids db: {}", ids_db_path.string()));
+        throw std::runtime_error(fmt::format("Failed to read PCI ids db: {}", ids_db_path.string()));
     }
 
     std::fclose(db_fd);

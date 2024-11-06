@@ -5,8 +5,8 @@
 
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 
-#include "util.h"
 #include <fmt/printf.h>
 
 namespace fs = std::filesystem;
@@ -38,11 +38,6 @@ constexpr auto VerbName(const Verbosity level)
     }
 }
 
-struct LoggerEx : public CommonEx
-{
-    using CommonEx::CommonEx;
-};
-
 constexpr Verbosity LoggerVerbosity { Verbosity::RAW };
 constexpr char log_dir[] { "/var/log/pciex" };
 
@@ -62,7 +57,7 @@ struct Logger
         auto log_file_path = log_dir_path / "pciex.log";
         log_file_ = std::fopen(log_file_path.c_str(), "w");
         if (!log_file_)
-            throw LoggerEx(fmt::format("Failed to open log file: {}", log_file_path.c_str()));
+            throw std::runtime_error(fmt::format("Failed to open log file: {}", log_file_path.c_str()));
     }
 
     ~Logger()

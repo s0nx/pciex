@@ -1,8 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2023-2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2024 Petr Vyazovik <xen@f-m.fm>
 
-#include "pciex.h"
+#include "pci_dev.h"
 #include "linux-sysfs.h"
+#include "log.h"
+#include "pci_regs.h"
+#include "util.h"
+
+#include <cassert>
+
+#include <fmt/format.h>
+
+namespace fs = std::filesystem;
+
+extern Logger logger;
 
 namespace pci {
 

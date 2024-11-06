@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include <type_traits>
-#include <string>
 #include <algorithm>
-#include <cassert>
 #include <vector>
+#include <cstdint>
+#include <string_view>
+#include <cassert>
 
 // Explicit scoped enums to underlying type conversion
 template <typename E>
@@ -30,24 +30,6 @@ struct RegMap
         assert(it != std::end(arr_));
         return it->second;
     }
-};
-
-constexpr std::string_view ExNames [] = {
-    "SYS",
-    "PCI_CFG",
-    "PCI_IDS_DB"
-};
-
-enum class ExType
-{
-    SYS,
-    PCI_CFG,
-    PCI_ID_DB,
-};
-
-struct CommonEx : public std::runtime_error
-{
-    CommonEx(const std::string &ex_msg) : std::runtime_error(ex_msg) {}
 };
 
 namespace vm {

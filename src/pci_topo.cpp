@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2023-2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2024 Petr Vyazovik <xen@f-m.fm>
 
-#include "pciex.h"
+#include "pci_dev.h"
+#include "pci_topo.h"
+#include "pci_regs.h"
 #include "linux-sysfs.h"
+#include "log.h"
+#include "util.h"
+
+extern Logger logger;
 
 namespace pci {
 
@@ -47,7 +53,8 @@ void PCITopologyCtx::populate()
         });
         auto res = buses_.insert(std::make_pair(std::get<1>(bus), std::move(pci_bus)));
         if (!res.second)
-            throw CommonEx(fmt::format("Failed to initialize bus {:02x}", std::get<1>(bus)));
+            throw std::runtime_error(fmt::format("Failed to initialize bus {:02x}",
+                                     std::get<1>(bus)));
     }
 
 }

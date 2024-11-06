@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2023-2024 Petr Vyazovik <xen@f-m.fm>
 
-#include "pciex.h"
+#include "util.h"
+#include "log.h"
+
+extern Logger logger;
 
 void vm::VmallocStats::AddEntry(const VmallocEntry &entry)
 {
@@ -110,12 +113,4 @@ bool sys::IsKptrSet()
     logger.log(Verbosity::WARN, "kptr_restrict -> {}: VA mapping info is unavalible", val);
     return false;
 }
-
-
-
-
-
-
-
-
 

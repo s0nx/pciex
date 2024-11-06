@@ -37,10 +37,13 @@ target_sources(pciex PRIVATE
     src/ids_parse.cpp
     src/linux-sysfs.cpp
     src/main.cpp
-    src/pciex.cpp
+    src/pci_topo.cpp
+    src/pci_dev.cpp
     src/pci_regs.cpp
-    src/topology.cpp
     src/util.cpp
+    src/ui/common_comp.cpp
+    src/ui/compat_cap_comp.cpp
+    src/ui/ext_cap_comp.cpp
     src/ui/screen.cpp
 )
 

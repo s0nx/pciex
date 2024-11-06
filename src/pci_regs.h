@@ -1292,14 +1292,6 @@ struct MSI64PVMCompatCap
 } __attribute__((packed));
 static_assert(sizeof(MSI64PVMCompatCap) == 0x18);
 
-enum class CapType
-{
-    compat,
-    extended
-};
-
-constexpr uint32_t ext_cap_cfg_off = 0x100;
-
 enum class CompatCapID
 {
     null_cap                   = 0x0,

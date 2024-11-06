@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2023-2024 Petr Vyazovik <xen@f-m.fm>
 
-#include <string>
-#include <iostream>
-#include <bit>
 #include <unistd.h>
 
-#include "pciex.h"
-#include "ids_parse.h"
 #include "log.h"
-
+#include "util.h"
 #include "ui/screen.h"
+
+#include <ftxui/component/screen_interactive.hpp>
 
 Logger logger;
 vm::VmallocStats vm_info;

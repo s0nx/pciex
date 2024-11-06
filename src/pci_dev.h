@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2023-2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2024 Petr Vyazovik <xen@f-m.fm>
 
 #pragma once
 
@@ -7,24 +7,10 @@
 #include <string_view>
 #include <vector>
 #include <cstdint>
-#include <fstream>
-#include <algorithm>
-#include <chrono>
 #include <filesystem>
-#include <utility>
-#include <map>
 #include <array>
 
-#include <fmt/printf.h>
-
-#include "log.h"
-#include "pci_regs.h"
-#include "virtio_regs.h"
 #include "ids_parse.h"
-
-extern Logger logger;
-
-namespace fs = std::filesystem;
 
 namespace pci {
 
@@ -39,6 +25,16 @@ enum class pci_dev_type
     TYPE0,
     TYPE1
 };
+
+// capability types
+enum class CapType
+{
+    compat,
+    extended
+};
+
+// extended capabilities offset within configuration space
+constexpr uint32_t ext_cap_cfg_off = 0x100;
 
 enum ids_types
 {
@@ -98,7 +94,7 @@ struct PciDevBase
     std::unique_ptr<uint8_t[]> cfg_space_;
 
     // sysfs device path
-    const fs::path        sys_path_;
+    const std::filesystem::path sys_path_;
 
     // Array of capabity descriptors
     // <cap type: compat or ext, capability ID, version, offset within config space>
@@ -114,7 +110,7 @@ struct PciDevBase
 
     PciDevBase() = delete;
     PciDevBase(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_type,
-               const fs::path &dev_path, std::unique_ptr<uint8_t []> cfg_buf);
+               const std::filesystem::path &dev_path, std::unique_ptr<uint8_t []> cfg_buf);
 
     template <typename E>
     constexpr uint32_t get_reg_compat(E e, auto &map) const noexcept
@@ -202,47 +198,6 @@ struct PciType1Dev : public PciDevBase
     uint32_t get_bridge_ctl() const noexcept;
 
     void print_data() const noexcept;
-};
-
-struct PCIBus
-{
-    uint16_t dom_;
-    uint16_t bus_nr_;
-    bool     is_root_ {false};
-    std::vector<std::shared_ptr<PciDevBase>> devs_;
-
-    PCIBus(uint16_t dom, uint16_t nr, bool is_root)
-        : dom_(dom), bus_nr_(nr), is_root_(is_root) {}
-};
-
-class PciObjCreator
-{
-public:
-    std::shared_ptr<PciDevBase>
-    create(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_type,
-           const fs::path &dev_path, std::unique_ptr<uint8_t []> cfg_buf)
-    {
-        if (dev_type == pci_dev_type::TYPE0)
-            return std::make_shared<PciType0Dev>(d_bdf, cfg_len, dev_type, dev_path,
-                                                 std::move(cfg_buf));
-        else
-            return std::make_shared<PciType1Dev>(d_bdf, cfg_len, dev_type, dev_path,
-                                                 std::move(cfg_buf));
-    }
-};
-
-struct PCITopologyCtx
-{
-    PciObjCreator dev_creator_;
-    PciIdParser iparser;
-    std::vector<std::shared_ptr<PciDevBase>> devs_;
-    std::map<uint16_t, PCIBus> buses_;
-
-    void populate();
-    void dump_data() const noexcept;
-
-    //XXX: DEBUG
-    void print_bus(const PCIBus &, int off);
 };
 
 } // namespace pci

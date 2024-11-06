@@ -7,19 +7,14 @@
 
 #include <vector>
 #include <cstdio>
-#include "log.h"
-
-extern Logger logger;
+#include <filesystem>
 
 constexpr std::string_view pci_devs_path {"/sys/bus/pci/devices"};
 constexpr std::string_view pci_bus_path {"/sys/class/pci_bus"};
 
-namespace sysfs {
+namespace fs = std::filesystem;
 
-struct CfgEx : public CommonEx
-{
-    using CommonEx::CommonEx;
-};
+namespace sysfs {
 
 // dom+BDF, cfg space buf, cfg space len, path to device in sysfs
 typedef std::tuple<uint64_t, std::unique_ptr<uint8_t []>, int32_t, fs::path> dev_desc;

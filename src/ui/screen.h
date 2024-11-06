@@ -3,14 +3,12 @@
 
 #pragma once
 
-#include <ftxui/dom/elements.hpp>
 #include <ftxui/screen/screen.hpp>
 #include <ftxui/component/component.hpp>
-#include <ftxui/component/screen_interactive.hpp>
+#include <ftxui/component/event.hpp>
 
-#include "../pciex.h"
-
-extern vm::VmallocStats vm_info;
+#include "pci_dev.h"
+#include "pci_topo.h"
 
 namespace ui {
 
@@ -131,13 +129,7 @@ struct CanvasElemBus : public CanvasElementBase
     ShapeDesc   points_;
 
     CanvasElemBus() = delete;
-    CanvasElemBus(const pci::PCIBus &bus, uint16_t x, uint16_t y)
-        : bus_id_str_(fmt::format("[ {:04x}:{:02x} ]", bus.dom_, bus.bus_nr_))
-    {
-        auto hlen = bus_id_str_.length() * sym_width + 2 * 2;
-        auto vlen = sym_height + 2;
-        points_ = { x + 1, y + 3, hlen, vlen };
-    }
+    CanvasElemBus(const pci::PCIBus &bus, uint16_t x, uint16_t y);
 
     PointDesc GetConnPos() noexcept;
 
@@ -246,46 +238,6 @@ inline auto MakeTopologyComp(int width, int height, const pci::PCITopologyCtx &c
 
 std::pair<uint16_t, uint16_t>
 GetCanvasSizeEstimate(const pci::PCITopologyCtx &ctx, ElemReprMode mode) noexcept;
-
-// XXX: This is essentialy the same as ftxui::ButtonBase with the only
-// difference of being able to track pressed/released state the same way ftxui::Checkbox does.
-// TODO: merge to mainline
-class PushPullButton : public ftxui::ComponentBase, public ftxui::ButtonOption
-{
-public:
-    explicit PushPullButton(ButtonOption option) : ButtonOption(std::move(option)) {}
-
-    ftxui::Element Render() override;
-
-    ftxui::Decorator AnimatedColorStyle();
-    void SetAnimationTarget(float target);
-    void OnAnimation(ftxui::animation::Params& p) override;
-    void OnClick();
-    bool OnEvent(ftxui::Event event) override;
-    bool OnMouseEvent(ftxui::Event event);
-    bool Focusable() const final { return true; }
-
-private:
-    bool is_pressed_ = false;
-    bool mouse_hover_ = false;
-    ftxui::Box box_;
-    ftxui::ButtonOption option_;
-    float animation_background_ = 0;
-    float animation_foreground_ = 0;
-    ftxui::animation::Animator animator_background_ =
-      ftxui::animation::Animator(&animation_background_);
-    ftxui::animation::Animator animator_foreground_ =
-      ftxui::animation::Animator(&animation_foreground_);
-};
-
-inline ftxui::Component PPButton(ftxui::ConstStringRef label,
-                                 std::function<void()> on_click,
-                                 ftxui::ButtonOption option)
-{
-  option.label = label;
-  option.on_click = std::move(on_click);
-  return ftxui::Make<PushPullButton>(std::move(option));
-}
 
 // TODO: It seems not to be easy to add scrolling to the component made of a bunch
 // of static DOM elements, e.g:
