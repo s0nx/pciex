@@ -129,6 +129,10 @@ struct PciDevBase
 
     void parse_capabilities();
     void dump_capabilities() noexcept;
+
+    // Return an offset within config space where a capability
+    // with a given type and ID is located
+    uint16_t GetCapOffByID(const CapType cap_type, const uint16_t cap_id) const;
     void GetResources() noexcept;
     void ParseBars() noexcept;
     virtual void ParseIDs(PciIdParser &parser);

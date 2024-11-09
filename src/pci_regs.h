@@ -1517,3 +1517,135 @@ constexpr auto ExtCapName(const ExtCapID cap_id)
     }
 }
 
+struct RegLinkCtl3
+{
+    uint32_t perform_eq               : 1;
+    uint32_t link_eq_req_itr_ena      : 1;
+    uint32_t rsvd0                    : 7;
+    uint32_t lower_skp_os_gen_vec_ena : 7;
+    uint32_t rsvd1                    : 16;
+} __attribute__((packed));
+static_assert(sizeof(RegLinkCtl3) == 4);
+
+constexpr auto EnableLowerSKPOSGenVecDesc(const uint8_t val)
+{
+    switch (val) {
+    case 0b0001:
+        return "2.5 GT/s";
+    case 0b0010:
+        return "5.0 GT/s";
+    case 0b0100:
+        return "8.0 GT/s";
+    case 0b1000:
+        return "16.0 GT/s";
+    default:
+        return "< rsvd >";
+    }
+}
+
+struct RegLaneErrStatus
+{
+    uint32_t lane_err_status;
+} __attribute__((packed));
+static_assert(sizeof(RegLaneErrStatus) == 4);
+
+struct RegLaneEqCtl
+{
+    uint16_t ds_port_8gts_trans_pres  : 4;
+    uint16_t ds_port_8gts_recv_pres_h : 3;
+    uint16_t rsvd0                    : 1;
+    uint16_t us_port_8gts_trans_pres  : 4;
+    uint16_t us_port_8gts_recv_pres_h : 3;
+    uint16_t rsvd1                    : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegLaneEqCtl) == 2);
+
+constexpr auto TransPresHint8gtsDesc(const uint8_t val)
+{
+    switch (val) {
+    case 0b0000:
+        return "P0";
+    case 0b0001:
+        return "P1";
+    case 0b0010:
+        return "P2";
+    case 0b0011:
+        return "P3";
+    case 0b0100:
+        return "P4";
+    case 0b0101:
+        return "P5";
+    case 0b0110:
+        return "P6";
+    case 0b0111:
+        return "P7";
+    case 0b1000:
+        return "P8";
+    case 0b1001:
+        return "P9";
+    case 0b1010:
+        return "P10";
+    default:
+        return "< rsvd >";
+    }
+}
+
+constexpr auto RecvPresHint8gtsDesc(const uint8_t val)
+{
+    switch (val) {
+    case 0b000:
+        return "-6 dB";
+    case 0b001:
+        return "-7 dB";
+    case 0b010:
+        return "-8 dB";
+    case 0b011:
+        return "-9 dB";
+    case 0b100:
+        return "-10 dB";
+    case 0b101:
+        return "-11 dB";
+    case 0b110:
+        return "-12 dB";
+    default:
+        return "< rsvd >";
+    }
+}
+
+// Secondary PCIe ext capability strucuture
+// XXX: this structure might also contain a number
+// of @RegLaneEqCtl register, but the actual number
+// is unknown in advance
+struct SecPciECap
+{
+    ExtCapHdr        hdr;           // 0x0
+    RegLinkCtl3      link_ctl3;     // 0x4
+    RegLaneErrStatus lane_err_stat; // 0x8
+} __attribute__((packed));
+static_assert(sizeof(SecPciECap) == 0xc);
+
+
+struct RegDataLinkFeatCap
+{
+    uint32_t local_data_link_feat_supp : 23;
+    uint32_t rsvd0                     : 8;
+    uint32_t data_link_feat_xchg_ena   : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegDataLinkFeatCap) == 4);
+
+struct RegDataLinkFeatStatus
+{
+    uint32_t rem_data_link_feat_supp       : 23;
+    uint32_t rsvd0                         : 8;
+    uint32_t rem_data_link_feat_supp_valid : 1;
+} __attribute__((packed));
+static_assert(sizeof(RegDataLinkFeatStatus) == 4);
+
+struct DataLinkFeatureCap
+{
+    ExtCapHdr             hdr;             // 0x0
+    RegDataLinkFeatCap    dlink_feat_cap;  // 0x4
+    RegDataLinkFeatStatus dlink_feat_stat; // 0x8
+} __attribute__((packed));
+static_assert(sizeof(DataLinkFeatureCap) == 0xc);
+

@@ -1778,7 +1778,7 @@ CapHdrComp(const cap_hdr_type_t cap_hdr)
                 text(fmt::format("id: {:#02x}", hdr.cap_id)) |
                      bold | center |
                      color(Color::Grey15) |
-                     bgcolor(Color::Magenta)
+                     bgcolor(Color::Blue),
             }) | border;
         }
     }, cap_hdr);

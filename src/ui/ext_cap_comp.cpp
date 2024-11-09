@@ -2,15 +2,180 @@
 // Copyright (C) 2024 Petr Vyazovik <xen@f-m.fm>
 
 #include <cassert>
+#include <bitset>
 
 #include "ext_cap_comp.h"
 #include "log.h"
+#include "util.h"
 
 extern Logger logger;
 
 using namespace ftxui;
 
 namespace ui {
+
+static capability_comp_ctx
+ExtSecondaryPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
+                    std::vector<uint8_t> &vis)
+{
+    Components upper, lower;
+
+    // In order to determine total amount of registers we need to consult
+    // Link Capabilities register in PCIE capability and get max link width
+    uint16_t pcie_cap_off = dev->GetCapOffByID(pci::CapType::compat,
+                                               e_to_type(CompatCapID::pci_express));
+    if (pcie_cap_off == 0) {
+      logger.log(Verbosity::WARN,
+                 "Secondary PCIe cap: failed to get primary PCIe cap offset");
+      return NotImplCap();
+    }
+
+    auto pcie_cap = reinterpret_cast<const PciECap *>(dev->cfg_space_.get() + pcie_cap_off);
+    auto max_link_width = pcie_cap->link_cap.max_link_width;
+    auto reg_per_cap = 2 + max_link_width;
+
+    size_t i = vis.size();
+    std::ranges::fill_n(std::back_inserter(vis), reg_per_cap, 0);
+
+    auto off = std::get<3>(cap);
+    auto sec_pcie_cap = reinterpret_cast<const SecPciECap *>(dev->cfg_space_.get() + off);
+    upper.push_back(CapDelimComp(cap));
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("Link Control 3 +0x4", &vis[i++]),
+                        CapHdrComp(sec_pcie_cap->hdr)
+                    }));
+
+    auto link_ctl3_content = vbox({
+        RegFieldCompElem(0, 0, " Perform EQ", sec_pcie_cap->link_ctl3.perform_eq),
+        RegFieldCompElem(1, 1, " Link EQ req intr enable", sec_pcie_cap->link_ctl3.link_eq_req_itr_ena),
+        RegFieldCompElem(2, 8),
+        RegFieldVerbElem(9, 15, fmt::format(" Enable lower SKP OS gen vector: {}",
+                                            EnableLowerSKPOSGenVecDesc(sec_pcie_cap->link_ctl3.lower_skp_os_gen_vec_ena)),
+                         sec_pcie_cap->link_ctl3.lower_skp_os_gen_vec_ena),
+        RegFieldCompElem(16, 31)
+    });
+    lower.push_back(CreateCapRegInfo(fmt::format("[extended][{:#02x}] Secondary PCIe", off),
+                                     "Link Control 3 +0x4",
+                                     std::move(link_ctl3_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("Lane Error Status +0x8", &vis[i++]),
+                    }));
+
+    auto lane_err_status_content = vbox({
+        RegFieldVerbElem(0, 31, fmt::format(" Lane(s) with error detected: {:#04x}",
+                                            sec_pcie_cap->lane_err_stat.lane_err_status),
+                         sec_pcie_cap->lane_err_stat.lane_err_status),
+    });
+    lower.push_back(CreateCapRegInfo(fmt::format("[extended][{:#02x}] Secondary PCIe", off),
+                                     "Lane Error Status +0x8",
+                                     std::move(lane_err_status_content), &vis[i - 1]));
+
+    // Check of port supports 8.0GT/s link speed or higher
+    if (pcie_cap->link_cap2.supported_speed_vec & 0x4) {
+        upper.push_back(
+                Container::Horizontal({
+                    RegButtonComp(fmt::format("Lane Equalization Control [{} lane(s)] +0xc",
+                                  max_link_width), &vis[i++]),
+        }));
+
+        for (uint32_t cur_link = 0; cur_link < max_link_width; cur_link++) {
+            auto lane_eq_ctl_reg = reinterpret_cast<const RegLaneEqCtl *>
+                (dev->cfg_space_.get() + off + cur_link * sizeof(RegLaneEqCtl));
+            auto lane_eq_ctl_content = vbox({
+                RegFieldVerbElem(0, 3,
+                    fmt::format(" Downstream port 8GT/s transmitter preset: {}",
+                                TransPresHint8gtsDesc(lane_eq_ctl_reg->ds_port_8gts_trans_pres)),
+                                lane_eq_ctl_reg->ds_port_8gts_trans_pres
+                ),
+                RegFieldVerbElem(4, 6,
+                    fmt::format(" Downstream port 8GT/s receiver preset: {}",
+                                RecvPresHint8gtsDesc(lane_eq_ctl_reg->ds_port_8gts_recv_pres_h)),
+                                lane_eq_ctl_reg->ds_port_8gts_recv_pres_h
+                ),
+                RegFieldCompElem(7, 7),
+                RegFieldVerbElem(8, 11,
+                    fmt::format(" Upstream port 8GT/s transmitter preset: {}",
+                                TransPresHint8gtsDesc(lane_eq_ctl_reg->us_port_8gts_trans_pres)),
+                                lane_eq_ctl_reg->us_port_8gts_trans_pres
+                ),
+                RegFieldVerbElem(4, 6,
+                    fmt::format(" Upstream port 8GT/s receiver preset: {}",
+                                RecvPresHint8gtsDesc(lane_eq_ctl_reg->us_port_8gts_recv_pres_h)),
+                                lane_eq_ctl_reg->us_port_8gts_recv_pres_h
+                ),
+                RegFieldCompElem(15, 15),
+            });
+            lower.push_back(
+                    CreateCapRegInfo(fmt::format("[extended][{:#02x}] Secondary PCIe", off),
+                                     fmt::format("Lane #{} Equalization Control +{:#01x}",
+                                                 cur_link, (0xc + cur_link * 0x2)),
+                                     std::move(lane_eq_ctl_content), &vis[i - 1]));
+        }
+    }
+
+    return {std::move(upper), std::move(lower)};
+}
+
+static capability_comp_ctx
+ExtDataLinkFeatureCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
+                      std::vector<uint8_t> &vis)
+{
+    Components upper, lower;
+    constexpr auto reg_per_cap = 2;
+    size_t i = vis.size();
+    std::ranges::fill_n(std::back_inserter(vis), reg_per_cap, 0);
+
+    auto off = std::get<3>(cap);
+    auto dlink_feature_cap = reinterpret_cast<const DataLinkFeatureCap *>
+                                             (dev->cfg_space_.get() + off);
+
+    upper.push_back(CapDelimComp(cap));
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("Data Link Feature Capabilities +0x4", &vis[i++]),
+                        CapHdrComp(dlink_feature_cap->hdr)
+                    }));
+
+    std::bitset<23> local_dlink_feat_map {dlink_feature_cap->dlink_feat_cap.local_data_link_feat_supp};
+
+    auto dlink_feature_caps_content = vbox({
+        RegFieldVerbElem(0, 22,
+                         fmt::format(" Local data link feature(s): Local Scaled Flow Ctl[{}]",
+                                local_dlink_feat_map[0] ? '+' : '-'),
+                         dlink_feature_cap->dlink_feat_cap.local_data_link_feat_supp),
+        RegFieldCompElem(23, 30),
+        RegFieldCompElem(31, 31, "Data link feature exchange enable",
+                         dlink_feature_cap->dlink_feat_cap.data_link_feat_xchg_ena == 1)
+    });
+    lower.push_back(
+            CreateCapRegInfo(fmt::format(
+                                "[extended][{:#02x}] Data Link Feature", off),
+                             "Data Link Feature Capabilities +0x4",
+                             std::move(dlink_feature_caps_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("Data Link Feature Status +0x8", &vis[i++]),
+                    }));
+
+    std::bitset<23> rem_dlink_feat_map {dlink_feature_cap->dlink_feat_stat.rem_data_link_feat_supp};
+
+    auto dlink_feature_stat_content = vbox({
+        RegFieldVerbElem(0, 22,
+                         fmt::format(" Remote data link feature(s): Remote Scaled Flow Ctl[{}]",
+                                rem_dlink_feat_map[0] ? '+' : '-'),
+                         dlink_feature_cap->dlink_feat_stat.rem_data_link_feat_supp),
+        RegFieldCompElem(23, 30),
+        RegFieldCompElem(31, 31, "Remote Data link feature supported valid",
+                         dlink_feature_cap->dlink_feat_stat.rem_data_link_feat_supp_valid == 1)
+    });
+    lower.push_back(
+            CreateCapRegInfo(fmt::format(
+                                "[extended][{:#02x}] Data Link Feature", off),
+                             "Data Link Feature Status +0x8",
+                             std::move(dlink_feature_stat_content), &vis[i - 1]));
+
+    return {std::move(upper), std::move(lower)};
+}
 
 capability_comp_ctx
 GetExtendedCapComponents(const pci::PciDevBase *dev, const ExtCapID cap_id,
@@ -68,7 +233,7 @@ GetExtendedCapComponents(const pci::PciDevBase *dev, const ExtCapID cap_id,
     case ExtCapID::ltr:
         return NotImplCap();
     case ExtCapID::sec_pcie:
-        return NotImplCap();
+        return ExtSecondaryPCIECap(dev, cap, vis);
     case ExtCapID::pmux:
         return NotImplCap();
     case ExtCapID::pasid:
@@ -92,7 +257,7 @@ GetExtendedCapComponents(const pci::PciDevBase *dev, const ExtCapID cap_id,
     case ExtCapID::vf_res_bar:
         return NotImplCap();
     case ExtCapID::data_link_feat:
-        return NotImplCap();
+        return ExtDataLinkFeatureCap(dev, cap, vis);
     case ExtCapID::phys_16gt:
         return NotImplCap();
     case ExtCapID::lane_marg_rx:

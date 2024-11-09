@@ -176,6 +176,20 @@ void PciDevBase::dump_capabilities() noexcept
     }
 }
 
+uint16_t PciDevBase::GetCapOffByID(const CapType cap_type, const uint16_t cap_id) const
+{
+    if (caps_.empty())
+        return 0;
+
+    for (const auto &cap : caps_)
+        if (std::get<0>(cap) == cap_type && std::get<1>(cap) == cap_id)
+            return std::get<3>(cap);
+
+    return 0;
+}
+
+
+
 void PciDevBase::GetResources() noexcept
 {
     auto dev_resources = sysfs::get_resources(sys_path_);
