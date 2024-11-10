@@ -1732,12 +1732,12 @@ CapsDelimComp(const pci::CapType type, const uint8_t caps_num)
         return vbox({
                     separatorEmpty(),
                     hbox({
-                        separatorLight() | flex,
+                        separatorHeavy() | flex,
                         text(fmt::format("[{} {} cap(s)]", caps_num,
                                          type == pci::CapType::compat ?
                                          "compatible" : "extended")) |
                         bold | inverted | center,
-                        separatorLight() | flex
+                        separatorHeavy() | flex
                     }),
                     separatorEmpty()
                 });
@@ -1753,29 +1753,29 @@ CapHdrComp(const cap_hdr_type_t cap_hdr)
         using T = std::decay_t<decltype(hdr)>;
         if constexpr (std::is_same_v<T, CompatCapHdr>) {
             elem = hbox({
-                text(fmt::format("next: {:#02x}", hdr.next_cap)) |
+                text(fmt::format("next: {:#3x}", hdr.next_cap)) |
                      bold | center |
                      color(Color::Grey15) |
                      bgcolor(Color::Green),
-                separator(),
-                text(fmt::format("id: {:#02x}", hdr.cap_id)) |
+                separatorEmpty(),
+                text(fmt::format("id: {:#3x}", hdr.cap_id)) |
                      bold | center |
                      color(Color::Grey15) |
                      bgcolor(Color::Blue)
             }) | border;
         } else {
             elem = hbox({
-                text(fmt::format("next: {:#02x}", hdr.next_cap)) |
+                text(fmt::format("next: {:#5x}", hdr.next_cap)) |
                      bold | center |
                      color(Color::Grey15) |
                      bgcolor(Color::Green),
-                separator(),
-                text(fmt::format("ver: {:#02x}", hdr.cap_ver)) |
+                separatorEmpty(),
+                text(fmt::format("ver: {:#5x}", hdr.cap_ver)) |
                      bold | center |
                      color(Color::Grey15) |
                      bgcolor(Color::Yellow),
-                separator(),
-                text(fmt::format("id: {:#02x}", hdr.cap_id)) |
+                separatorEmpty(),
+                text(fmt::format("id: {:#5x}", hdr.cap_id)) |
                      bold | center |
                      color(Color::Grey15) |
                      bgcolor(Color::Blue),
