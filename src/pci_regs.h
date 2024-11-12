@@ -1649,3 +1649,57 @@ struct DataLinkFeatureCap
 } __attribute__((packed));
 static_assert(sizeof(DataLinkFeatureCap) == 0xc);
 
+struct RegARICapability
+{
+    uint16_t mfvc_func_grp_cap : 1;
+    uint16_t acs_func_grp_cap  : 1;
+    uint16_t rsvd0             : 6;
+    uint16_t next_func_num     : 8;
+} __attribute__((packed));
+static_assert(sizeof(RegARICapability) == 2);
+
+struct RegARIControl
+{
+    uint16_t mfvc_func_grps_ena : 1;
+    uint16_t acs_func_grps_ena  : 1;
+    uint16_t rsvd0              : 2;
+    uint16_t func_grp           : 3;
+    uint16_t rsvd1              : 9;
+} __attribute__((packed));
+static_assert(sizeof(RegARIControl) == 2);
+
+struct ARICap
+{
+    ExtCapHdr        hdr;     // 0x0
+    RegARICapability ari_cap; // 0x4
+    RegARIControl    ari_ctl; // 0x6
+} __attribute__((packed));
+static_assert(sizeof(ARICap) == 0x8);
+
+struct RegPASIDCapability
+{
+    uint16_t rsvd0                : 1;
+    uint16_t exec_perm_supp       : 1;
+    uint16_t privileged_mode_supp : 1;
+    uint16_t rsvd1                : 5;
+    uint16_t max_pasid_width      : 5;
+    uint16_t rsvd2                : 3;
+} __attribute__((packed));
+static_assert(sizeof(RegPASIDCapability) == 2);
+
+struct RegPASIDControl
+{
+    uint16_t pasid_ena           : 1;
+    uint16_t exec_perm_ena       : 1;
+    uint16_t privileged_mode_ena : 1;
+    uint16_t rsvd0               : 13;
+} __attribute__((packed));
+static_assert(sizeof(RegPASIDControl) == 2);
+
+struct PASIDCap
+{
+    ExtCapHdr          hdr;       // 0x0
+    RegPASIDCapability pasid_cap; // 0x4
+    RegPASIDControl    pasid_ctl; // 0x6
+} __attribute__((packed));
+static_assert(sizeof(PASIDCap) == 0x8);
