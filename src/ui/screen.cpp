@@ -815,10 +815,10 @@ void PCIRegsComponent::FinalizeComponent()
         else if (ev == Event::F3)
                 lower_comp_hoverable->TakeFocus();
 
-        if (ev == ftxui::Event::AltJ)
-            ui::SeparatorShift(ui::UiElemShiftDir::DOWN, cur_hor_split_off);
-        if (ev == ftxui::Event::AltK)
-            ui::SeparatorShift(ui::UiElemShiftDir::UP, cur_hor_split_off);
+        if (ev == Event::AltJ)
+            SeparatorShift(UiElemShiftDir::DOWN, cur_hor_split_off);
+        if (ev == Event::AltK)
+            SeparatorShift(UiElemShiftDir::UP, cur_hor_split_off);
 
         return false;
     });
@@ -940,8 +940,8 @@ static Element GetHelpElem()
 
 Component GetHelpScreenComp()
 {
-    auto help_comp = ftxui::Renderer([&] {
-        return ftxui::vbox({
+    auto help_comp = Renderer([&] {
+        return vbox({
           GetLogo() | center,
           separatorEmpty(),
           GetHelpElem()
@@ -977,6 +977,72 @@ void SeparatorShift(UiElemShiftDir direction, int *cur_sep_pos)
             *cur_sep_pos += 5;
         break;
     }
+}
+
+ScreenCompCtx::ScreenCompCtx(const pci::PCITopologyCtx &topo_ctx) :
+      topo_ctx_(topo_ctx),
+      topo_canvas_(nullptr),
+      topo_canvas_comp_(nullptr),
+      main_comp_split_(nullptr),
+      pci_regs_comp_(nullptr),
+      vert_split_off_(60),
+      show_help_(false)
+{}
+
+Component
+ScreenCompCtx::Create()
+{
+    auto [width, height] = GetCanvasSizeEstimate(topo_ctx_, ElemReprMode::Compact);
+    topo_canvas_ = MakeTopologyComp(width, height, topo_ctx_);
+    topo_canvas_comp_ = MakeBorderedHoverComp(topo_canvas_);
+
+    pci_regs_comp_ = std::make_shared<PCIRegsComponent>(topo_canvas_);
+
+    auto main_comp_split_ = ResizableSplit({
+        .main = topo_canvas_comp_,
+        .back = pci_regs_comp_,
+        .direction = Direction::Left,
+        .main_size = &vert_split_off_,
+        .separator_func = [] { return separatorHeavy(); }
+    });
+
+    main_comp_split_ |= CatchEvent([&](Event ev) {
+        if (ev.is_character()) {
+            if (ev.character()[0] == '?')
+                show_help_ = show_help_ ? false : true;
+        }
+
+        // handle pane selection
+        if (ev == Event::F1)
+            topo_canvas_comp_->TakeFocus();
+        else if (ev == Event::F2 || ev == Event::F3)
+            pci_regs_comp_->TakeFocus();
+
+        // handle pane resize
+        if (ev == Event::AltH)
+            SeparatorShift(UiElemShiftDir::LEFT, &vert_split_off_);
+        if (ev == Event::AltL)
+            SeparatorShift(UiElemShiftDir::RIGHT, &vert_split_off_);
+        if (ev == Event::AltJ || ev == Event::AltK)
+            pci_regs_comp_->TakeFocus();
+
+        return false;
+    });
+
+    auto help_component = GetHelpScreenComp();
+    help_component |= CatchEvent([&](Event ev) {
+        if (ev == Event::Escape ||
+            (ev.is_character() &&
+             (ev.character()[0] == '?' || ev.character()[0] == 'q')))
+        {
+                show_help_ = show_help_ ? false : true;
+        }
+
+        return false;
+    });
+
+    main_comp_split_ |= Modal(help_component, &show_help_);
+    return main_comp_split_;
 }
 
 } //namespace ui

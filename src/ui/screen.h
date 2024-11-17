@@ -326,4 +326,24 @@ ftxui::Component GetHelpScreenComp();
 
 void SeparatorShift(UiElemShiftDir direction, int *cur_sep_pos);
 
+class ScreenCompCtx
+{
+public:
+  ScreenCompCtx(const pci::PCITopologyCtx &topo_ctx);
+
+  // Create main screen components
+  ftxui::Component
+  Create();
+
+private:
+  const pci::PCITopologyCtx         &topo_ctx_;
+  std::shared_ptr<PCITopoUIComp>    topo_canvas_;
+  ftxui::Component                  topo_canvas_comp_;
+  ftxui::Component                  main_comp_split_;
+  std::shared_ptr<PCIRegsComponent> pci_regs_comp_;
+
+  int                               vert_split_off_;
+  bool                              show_help_;
+};
+
 } // namespace ui

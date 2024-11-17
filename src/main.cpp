@@ -54,63 +54,19 @@ int main()
 
     topology.dump_data();
 
-    auto [width, height] = ui::GetCanvasSizeEstimate(topology, ui::ElemReprMode::Compact);
-    auto topo_canvas = ui::MakeTopologyComp(width, height, topology);
+    std::unique_ptr<ui::ScreenCompCtx> screen_comp_ctx;
+    ftxui::Component                   main_comp;
 
-    auto topo_canvas_bordered = ui::MakeBorderedHoverComp(topo_canvas);
-
-    auto pci_regs_component = std::make_shared<ui::PCIRegsComponent>(topo_canvas);
-    int vert_split_off = 60;
-
-    auto main_component_split = ftxui::ResizableSplit({
-        .main = topo_canvas_bordered,
-        .back = pci_regs_component,
-        .direction = ftxui::Direction::Left,
-        .main_size = &vert_split_off,
-        .separator_func = [] { return ftxui::separatorHeavy(); }
-    });
-
-    bool show_help = false;
-
-    main_component_split |= ftxui::CatchEvent([&](ftxui::Event ev) {
-        if (ev.is_character()) {
-            if (ev.character()[0] == '?')
-                show_help = show_help ? false : true;
-        }
-
-        // handle pane selection
-        if (ev == ftxui::Event::F1)
-            topo_canvas_bordered->TakeFocus();
-        else if (ev == ftxui::Event::F2 || ev == ftxui::Event::F3)
-            pci_regs_component->TakeFocus();
-
-        // handle pane resize
-        if (ev == ftxui::Event::AltH)
-            ui::SeparatorShift(ui::UiElemShiftDir::LEFT, &vert_split_off);
-        if (ev == ftxui::Event::AltL)
-            ui::SeparatorShift(ui::UiElemShiftDir::RIGHT, &vert_split_off);
-        if (ev == ftxui::Event::AltJ || ev == ftxui::Event::AltK)
-            pci_regs_component->TakeFocus();
-
-        return false;
-    });
-
-    auto help_component = ui::GetHelpScreenComp();
-    help_component |= ftxui::CatchEvent([&](ftxui::Event ev) {
-        if (ev == ftxui::Event::Escape ||
-            (ev.is_character() &&
-             (ev.character()[0] == '?' || ev.character()[0] == 'q')))
-        {
-                show_help = show_help ? false : true;
-        }
-
-        return false;
-    });
-
-    main_component_split |= ftxui::Modal(help_component, &show_help);
+    try {
+        screen_comp_ctx.reset(new ui::ScreenCompCtx(topology));
+        main_comp = screen_comp_ctx->Create();
+    } catch (std::exception &ex) {
+        logger.log(Verbosity::FATAL, "{}", ex.what());
+        std::exit(EXIT_FAILURE);
+    }
 
     auto screen = ftxui::ScreenInteractive::Fullscreen();
-    screen.Loop(main_component_split);
+    screen.Loop(main_comp);
 
     return 0;
 }
