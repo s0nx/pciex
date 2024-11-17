@@ -2,7 +2,6 @@
 // Copyright (C) 2023-2024 Petr Vyazovik <xen@f-m.fm>
 
 #include <cstdint>
-#include <span> // TODO: drop this
 
 #include "ids_parse.h"
 #include "log.h"
@@ -214,11 +213,10 @@ ClassCodeInfo PciIdParser::class_info_lookup(const uint32_t ccode)
         }
     }
 
-    uint32_t cc[] {ccode};
-    const auto cc_bytes = std::as_bytes(std::span{cc});
-    const auto base_class_code = std::to_integer<uint8_t>(cc_bytes[2]);
-    const auto sub_class_code  = std::to_integer<uint8_t>(cc_bytes[1]);
-    const auto prog_iface      = std::to_integer<uint8_t>(cc_bytes[0]);
+    const uint8_t *cc_bytes = reinterpret_cast<const uint8_t *>(&ccode);
+    const uint8_t base_class_code = cc_bytes[2];
+    const uint8_t sub_class_code  = cc_bytes[1];
+    const uint8_t prog_iface      = cc_bytes[0];
 
     logger.log(Verbosity::RAW, "CC: |base class {:02x}| subclass {:02x}| prog-if {:02x}|",
                base_class_code, sub_class_code, prog_iface);
