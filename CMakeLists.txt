@@ -8,21 +8,15 @@ project(
 # fmtlib
 find_package(fmt REQUIRED)
 
-# FTXUI
 include(FetchContent)
 
-set(FETCHCONTENT_UPDATES_DISCONNECTED TRUE)
+# FTXUI
 FetchContent_Declare(
-ftxui
-GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
-GIT_TAG        main
+    ftxui
+    GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
+    GIT_TAG        main
 )
-
-FetchContent_GetProperties(ftxui)
-if(NOT ftxui_POPULATED)
-    FetchContent_Populate(ftxui)
-    add_subdirectory(${ftxui_SOURCE_DIR} ${ftxui_BINARY_DIR} EXCLUDE_FROM_ALL)
-endif()
+FetchContent_MakeAvailable(ftxui)
 
 add_executable(pciex)
 
