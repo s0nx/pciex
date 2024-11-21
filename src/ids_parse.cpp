@@ -2,11 +2,16 @@
 // Copyright (C) 2023-2024 Petr Vyazovik <xen@f-m.fm>
 
 #include <cstdint>
+#include <filesystem>
+
+#include <fmt/format.h>
 
 #include "ids_parse.h"
 #include "log.h"
 
 extern Logger logger;
+
+namespace fs = std::filesystem;
 
 using namespace pci;
 

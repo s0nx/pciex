@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2024 Petr Vyazovik <xen@f-m.fm>
 
-#include <cassert>
-#include <bitset>
-
 #include "ext_cap_comp.h"
 #include "log.h"
 #include "util.h"
+
+#include <cassert>
+#include <bitset>
+
+#include <fmt/format.h>
 
 extern Logger logger;
 

@@ -4,6 +4,8 @@
 #include "util.h"
 #include "log.h"
 
+#include <fstream>
+
 extern Logger logger;
 
 void vm::VmallocStats::AddEntry(const VmallocEntry &entry)

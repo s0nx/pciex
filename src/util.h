@@ -18,7 +18,7 @@ constexpr auto e_to_type(E e) noexcept
 
 // Constexpr map
 template <typename Key, typename Val, std::size_t Size>
-struct RegMap
+struct CTMap
 {
     std::array<std::pair<Key, Val>, Size> arr_;
 

@@ -10,6 +10,8 @@
 #include "ext_cap_comp.h"
 #include "pciex_version.h"
 
+#include <algorithm>
+
 extern Logger logger;
 
 using namespace ftxui;

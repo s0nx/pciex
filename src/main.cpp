@@ -3,31 +3,40 @@
 
 #include <unistd.h>
 
+#include "config.h"
 #include "log.h"
 #include "util.h"
 #include "ui/screen.h"
 
 #include <ftxui/component/screen_interactive.hpp>
 
-Logger logger;
+cfg::CmdLOpts    cmdline_options;
 vm::VmallocStats vm_info;
+Logger           logger;
 
-int main()
+int main(int argc, char *argv[])
 {
-    if (getuid()) {
-        fmt::print("'pciex' must be run with root privileges. Exiting.\n");
-        std::exit(EXIT_FAILURE);
-    }
-
-    if (std::endian::native != std::endian::little) {
-        fmt::print("Non little-endian platforms are not supported by now. Exiting\n");
-        std::exit(EXIT_FAILURE);
-    }
+    cfg::ParseCmdLineOptions(cmdline_options, argc, argv);
 
     try {
         logger.init();
     } catch (std::exception &ex) {
         fmt::print("{}", ex.what());
+        std::exit(EXIT_FAILURE);
+    }
+
+    cmdline_options.Dump();
+
+    if (cfg::OpModeNeedsElPriv(cmdline_options.mode_)) {
+        if (getuid()) {
+            fmt::print("'pciex' must be run with root privileges in [{}] mode. Exiting.\n",
+                       cfg::OpModeName(cmdline_options.mode_));
+            std::exit(EXIT_FAILURE);
+        }
+    }
+
+    if (std::endian::native != std::endian::little) {
+        fmt::print("Non little-endian platforms are not supported by now. Exiting\n");
         std::exit(EXIT_FAILURE);
     }
 

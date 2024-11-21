@@ -17,7 +17,7 @@ extern Logger logger;
 
 namespace pci {
 
-static constexpr RegMap<Type0Cfg, uint32_t, type0_compat_reg_cnt> t0_reg_map {{
+static constexpr CTMap<Type0Cfg, uint32_t, type0_compat_reg_cnt> t0_reg_map {{
     {{Type0Cfg::vid,             2},
      {Type0Cfg::dev_id,          2},
      {Type0Cfg::command,         2},
@@ -52,7 +52,7 @@ static constexpr RegMap<Type0Cfg, uint32_t, type0_compat_reg_cnt> t0_reg_map {{
      {Type0Cfg::max_lat,         1}}
 }};
 
-static constexpr RegMap<Type1Cfg, uint32_t, type1_compat_reg_cnt> t1_reg_map {{
+static constexpr CTMap<Type1Cfg, uint32_t, type1_compat_reg_cnt> t1_reg_map {{
     {{Type1Cfg::vid,              2},
      {Type1Cfg::dev_id,           2},
      {Type1Cfg::command,          2},

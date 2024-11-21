@@ -4,6 +4,9 @@
 #include "linux-sysfs.h"
 #include "log.h"
 
+#include <fstream>
+#include <fmt/format.h>
+
 extern Logger logger;
 
 namespace sysfs {

@@ -46,7 +46,8 @@ Help window can be accessed at any time by pressing `?` key.
 ## References
 The following libraries are used by this tool:
  * UI is built using [FTXUI](https://github.com/ArthurSonzogni/FTXUI)
- * [fmt](https://github.com/fmtlib/fmt) is used for text formatting
+ * [fmt](https://github.com/fmtlib/fmt) - text formatting
+ * [CLI11](https://github.com/CLIUtils/CLI11) - command line parsing
 
 ## Misc
 ### Generating compilation database

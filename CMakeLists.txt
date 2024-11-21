@@ -18,6 +18,18 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(ftxui)
 
+# CLI11
+FetchContent_Declare(
+    cli11
+    GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
+    GIT_TAG main
+)
+FetchContent_MakeAvailable(cli11)
+
+# XXX: it seems target_compile_features(... cxx_std_20) doesn't propagate
+# version to cli11, so set the version explicitly
+set(CMAKE_CXX_STANDARD 20)
+
 add_executable(pciex)
 
 # includes
@@ -28,8 +40,10 @@ target_include_directories(pciex PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 # src
 target_sources(pciex PRIVATE
+    src/config.cpp
     src/ids_parse.cpp
     src/linux-sysfs.cpp
+    src/log.cpp
     src/main.cpp
     src/pci_topo.cpp
     src/pci_dev.cpp
@@ -41,15 +55,17 @@ target_sources(pciex PRIVATE
     src/ui/screen.cpp
 )
 
-target_compile_features(pciex PRIVATE cxx_std_20)
+target_compile_features(pciex PUBLIC cxx_std_20)
 target_compile_options(pciex PRIVATE -Wall -Wextra -pedantic -O3)
 
-target_link_libraries(pciex LINK_PUBLIC fmt)
+target_link_libraries(pciex PRIVATE fmt)
 target_link_libraries(pciex
     PRIVATE ftxui::screen
     PRIVATE ftxui::dom
     PRIVATE ftxui::component
 )
+
+target_link_libraries(pciex PRIVATE CLI11::CLI11)
 
 # creates pciex_version.h using cmake script
 add_custom_command(

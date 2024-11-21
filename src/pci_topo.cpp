@@ -8,6 +8,8 @@
 #include "log.h"
 #include "util.h"
 
+#include <fmt/format.h>
+
 extern Logger logger;
 
 namespace pci {
