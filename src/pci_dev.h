@@ -12,6 +12,7 @@
 
 #include "ids_parse.h"
 #include "provider_iface.h"
+#include "util.h"
 
 namespace pci {
 
@@ -75,7 +76,19 @@ struct PciDevBarResource
     uint64_t     len_;
     bool         is_64bit_;
     bool         is_prefetchable_;
+    bool         has_v2p_info_;
+
+    PciDevBarResource() :
+        type_(ResourceType::EMPTY),
+        phys_addr_(0),
+        len_(0),
+        is_64bit_(false),
+        is_prefetchable_(false),
+        has_v2p_info_(false)
+    {  }
 };
+
+constexpr uint32_t dev_max_bar_cnt = 6;
 
 namespace fs = std::filesystem;
 
@@ -111,7 +124,10 @@ struct PciDevBase
     std::vector<DevResourceDesc> resources_;
 
     // BARs resources
-    std::array<PciDevBarResource, 6> bar_res_;
+    std::array<PciDevBarResource, dev_max_bar_cnt> bar_res_;
+
+    // v2p mapping descriptors
+    std::array<std::vector<vm::VmallocEntry>, dev_max_bar_cnt> v2p_bar_map_info_;
 
     PciDevBase() = delete;
     PciDevBase(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_type,
@@ -141,6 +157,7 @@ struct PciDevBase
     void AssignResources(std::vector<DevResourceDesc>) noexcept;
     void DumpResources() noexcept;
     void ParseBars() noexcept;
+    void ParseBarsV2PMappings();
     virtual void ParseIDs(PciIdParser &parser);
 
     // Common registers for both Type 0 / Type 1 devices

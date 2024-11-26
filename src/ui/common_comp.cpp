@@ -5,11 +5,8 @@
 #include <fmt/format.h>
 
 #include "common_comp.h"
-#include "util.h"
 
 #include "ftxui/component/event.hpp"
-
-extern vm::VmallocStats vm_info;
 
 using namespace ftxui;
 
@@ -680,22 +677,19 @@ RegInfoBARComp(const pci::PciDevBase *dev, const compat_reg_type_t reg_type,
             desc
         };
 
-        if (vm_info.InfoAvailable()) {
+        if (cur_bar_res.has_v2p_info_) {
             auto pa_start = cur_bar_res.phys_addr_;
             auto pa_end = cur_bar_res.phys_addr_ + cur_bar_res.len_;
-            auto va2pa_info = vm_info.GetMappingInRange(pa_start, pa_end);
 
-            if (!va2pa_info.empty()) {
-                content_elems.push_back(separatorEmpty());
+            content_elems.push_back(separatorEmpty());
+            content_elems.push_back(
+                    text(fmt::format("v2p mappings for PA range [{:#x} - {:#x}]:",
+                                     pa_start, pa_end)));
+            for (const auto &vm_e : dev->v2p_bar_map_info_[bar_idx]) {
                 content_elems.push_back(
-                        text(fmt::format("v2p mappings for PA range [{:#x} - {:#x}]:",
-                                         pa_start, pa_end)));
-                for (const auto &vm_e : va2pa_info) {
-                    content_elems.push_back(
-                        text(fmt::format("VA range [{:#x} - {:#x}] -> PA {:#x} len {:#x}",
-                                         vm_e.start_, vm_e.end_, vm_e.pa_, vm_e.len_))
-                    );
-                }
+                    text(fmt::format("VA range [{:#x} - {:#x}] -> PA {:#x} len {:#x}",
+                                     vm_e.start_, vm_e.end_, vm_e.pa_, vm_e.len_))
+                );
             }
         }
 

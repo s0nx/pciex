@@ -14,6 +14,7 @@
 namespace fs = std::filesystem;
 
 extern Logger logger;
+extern vm::VmallocStats vm_info;
 
 namespace pci {
 
@@ -242,6 +243,26 @@ void PciDevBase::ParseBars() noexcept
 
         bar_res_[i].phys_addr_ = start;
         bar_res_[i].len_ = end - start + 1;
+    }
+}
+
+void PciDevBase::ParseBarsV2PMappings()
+{
+    if (vm_info.InfoAvailable()) {
+        auto num_bars = (type_ == pci_dev_type::TYPE0) ? 6 : 2;
+        for (int i = 0; i < num_bars; i++) {
+            auto &cur_bar_res = bar_res_[i];
+            if (cur_bar_res.type_ == ResourceType::MEMORY) {
+                auto pa_start = cur_bar_res.phys_addr_;
+                auto pa_end = cur_bar_res.phys_addr_ + cur_bar_res.len_;
+                auto va2pa_info = vm_info.GetMappingInRange(pa_start, pa_end);
+
+                if (!va2pa_info.empty()) {
+                    cur_bar_res.has_v2p_info_ = true;
+                    v2p_bar_map_info_[i] = std::move(va2pa_info);
+                }
+            }
+        }
     }
 }
 

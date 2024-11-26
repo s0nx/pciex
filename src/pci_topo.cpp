@@ -31,6 +31,7 @@ void PCITopologyCtx::Populate(const Provider &provider)
         pci_dev->AssignResources(provider.GetPCIDevResources(dev_desc.arg_));
         pci_dev->DumpResources();
         pci_dev->ParseBars();
+        pci_dev->ParseBarsV2PMappings();
         pci_dev->ParseIDs(iparser_);
         auto drv_name = provider.GetDriver(dev_desc.arg_);
         logger.log(Verbosity::INFO, "{} driver: {}", pci_dev->dev_id_str_,
