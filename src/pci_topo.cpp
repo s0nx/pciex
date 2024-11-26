@@ -4,7 +4,6 @@
 #include "pci_dev.h"
 #include "pci_topo.h"
 #include "pci_regs.h"
-#include "linux-sysfs.h"
 #include "log.h"
 #include "util.h"
 
@@ -14,27 +13,26 @@ extern Logger logger;
 
 namespace pci {
 
-void PCITopologyCtx::populate()
+void PCITopologyCtx::Populate(const Provider &provider)
 {
-    auto devices = sysfs::scan_pci_devices();
+    auto devices = provider.GetPCIDevDescriptors();
 
-    for (auto &dev : devices) {
-        auto d_bdf    = std::get<0>(dev);
-        auto cfg_buf  = std::move(std::get<1>(dev));
-        auto cfg_len  = std::get<2>(dev);
-        auto dev_path = std::get<3>(dev);
-
-        auto h_type = reinterpret_cast<uint8_t *>
-                     (cfg_buf.get() + e_to_type(Type0Cfg::header_type));
-        auto dev_type = *h_type & 0x1 ? pci_dev_type::TYPE1 : pci_dev_type::TYPE0;
-        auto pci_dev = dev_creator_.create(d_bdf, cfg_space_type{cfg_len},
-                                           dev_type, dev_path, std::move(cfg_buf));
-        pci_dev->parse_capabilities();
-        pci_dev->dump_capabilities();
-        pci_dev->GetResources();
+    for (auto &dev_desc : devices) {
+        const auto h_type = reinterpret_cast<uint8_t *>
+                     (dev_desc.cfg_space_.get() + e_to_type(Type0Cfg::header_type));
+        const auto dev_type = *h_type & 0x1 ? pci_dev_type::TYPE1 : pci_dev_type::TYPE0;
+        auto pci_dev = dev_creator_.Create(dev_desc.dbdf_,
+                                           cfg_space_type{dev_desc.cfg_space_len_},
+                                           dev_type,
+                                           dev_desc.arg_,
+                                           std::move(dev_desc.cfg_space_));
+        pci_dev->ParseCapabilities();
+        pci_dev->DumpCapabilities();
+        pci_dev->AssignResources(provider.GetPCIDevResources(dev_desc.arg_));
+        pci_dev->DumpResources();
         pci_dev->ParseBars();
-        pci_dev->ParseIDs(iparser);
-        auto drv_name = sysfs::get_driver(dev_path);
+        pci_dev->ParseIDs(iparser_);
+        auto drv_name = provider.GetDriver(dev_desc.arg_);
         logger.log(Verbosity::INFO, "{} driver: {}", pci_dev->dev_id_str_,
                     drv_name.empty() ? "<none>" : drv_name);
         devs_.push_back(std::move(pci_dev));
@@ -46,7 +44,7 @@ void PCITopologyCtx::populate()
         return d_bdf_a < d_bdf_b;
     });
 
-    auto bus_descs = sysfs::scan_buses();
+    auto bus_descs = provider.GetBusDescriptors();
 
     for (auto &bus : bus_descs) {
         PCIBus pci_bus(std::get<0>(bus), std::get<1>(bus), std::get<2>(bus));
@@ -61,13 +59,13 @@ void PCITopologyCtx::populate()
 
 }
 
-void PCITopologyCtx::dump_data() const noexcept
+void PCITopologyCtx::DumpData() const noexcept
 {
     for (const auto &el : devs_)
         el->print_data();
 }
 
-void PCITopologyCtx::print_bus(const PCIBus &bus, int off)
+void PCITopologyCtx::PrintBus(const PCIBus &bus, int off)
 {
     for (const auto &dev : bus.devs_) {
         if (dev->type_ == pci::pci_dev_type::TYPE1) {
@@ -77,7 +75,7 @@ void PCITopologyCtx::print_bus(const PCIBus &bus, int off)
             auto type1_dev = dynamic_cast<PciType1Dev *>(dev.get());
             auto sec_bus = buses_.find(type1_dev->get_sec_bus_num());
             if (sec_bus != buses_.end()) {
-                print_bus(sec_bus->second, off + 1);
+                PrintBus(sec_bus->second, off + 1);
             }
 
         } else {

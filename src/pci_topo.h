@@ -4,11 +4,9 @@
 #pragma once
 
 #include <map>
-#include <vector>
-#include <cstdint>
-#include <filesystem>
 
 #include "ids_parse.h"
+#include "provider_iface.h"
 
 namespace pci {
 
@@ -27,30 +25,30 @@ class PciObjCreator
 {
 public:
     std::shared_ptr<PciDevBase>
-    create(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_type,
-           const std::filesystem::path &dev_path, std::unique_ptr<uint8_t []> cfg_buf)
+    Create(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_type,
+           ProviderArg &p_arg, std::unique_ptr<uint8_t []> cfg_buf)
     {
         if (dev_type == pci_dev_type::TYPE0)
-            return std::make_shared<PciType0Dev>(d_bdf, cfg_len, dev_type, dev_path,
+            return std::make_shared<PciType0Dev>(d_bdf, cfg_len, dev_type, p_arg,
                                                  std::move(cfg_buf));
         else
-            return std::make_shared<PciType1Dev>(d_bdf, cfg_len, dev_type, dev_path,
+            return std::make_shared<PciType1Dev>(d_bdf, cfg_len, dev_type, p_arg,
                                                  std::move(cfg_buf));
     }
 };
 
 struct PCITopologyCtx
 {
-    PciObjCreator dev_creator_;
-    PciIdParser iparser;
+    PciObjCreator                            dev_creator_;
+    PciIdParser                              iparser_;
     std::vector<std::shared_ptr<PciDevBase>> devs_;
-    std::map<uint16_t, PCIBus> buses_;
+    std::map<uint16_t, PCIBus>               buses_;
 
-    void populate();
-    void dump_data() const noexcept;
+    void Populate(const Provider &);
+    void DumpData() const noexcept;
 
     //XXX: DEBUG
-    void print_bus(const PCIBus &, int off);
+    void PrintBus(const PCIBus &, int off);
 };
 
 } // namespace pci

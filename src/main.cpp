@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "log.h"
+#include "linux-sysfs.h"
 #include "util.h"
 #include "ui/screen.h"
 
@@ -53,15 +54,17 @@ int main(int argc, char *argv[])
     if (vm_info.InfoAvailable())
         vm_info.DumpStats();
 
+    auto sysfs_provider = sysfs::SysfsProvider();
+
     pci::PCITopologyCtx topology;
     try {
-        topology.populate();
+        topology.Populate(sysfs_provider);
     } catch (std::exception &ex) {
         logger.log(Verbosity::FATAL, "{}", ex.what());
         std::exit(EXIT_FAILURE);
     }
 
-    topology.dump_data();
+    topology.DumpData();
 
     std::unique_ptr<ui::ScreenCompCtx> screen_comp_ctx;
     ftxui::Component                   main_comp;

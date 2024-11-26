@@ -11,6 +11,7 @@
 #include <array>
 
 #include "ids_parse.h"
+#include "provider_iface.h"
 
 namespace pci {
 
@@ -76,6 +77,8 @@ struct PciDevBarResource
     bool         is_prefetchable_;
 };
 
+namespace fs = std::filesystem;
+
 struct PciDevBase
 {
     uint16_t        dom_;
@@ -91,10 +94,12 @@ struct PciDevBase
     cfg_space_type  cfg_type_;
     pci_dev_type    type_;
 
-    std::unique_ptr<uint8_t[]> cfg_space_;
+    OpaqueBuf       cfg_space_;
 
     // sysfs device path
-    const std::filesystem::path sys_path_;
+    fs::path        sys_path_;
+
+    OpaqueBuf       cfg_buf_;
 
     // Array of capabity descriptors
     // <cap type: compat or ext, capability ID, version, offset within config space>
@@ -103,14 +108,14 @@ struct PciDevBase
     uint8_t extended_caps_num_;
 
     // device resources info obtained via sysfs
-    std::vector<std::tuple<uint64_t, uint64_t, uint64_t>> resources_;
+    std::vector<DevResourceDesc> resources_;
 
     // BARs resources
     std::array<PciDevBarResource, 6> bar_res_;
 
     PciDevBase() = delete;
     PciDevBase(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_type,
-               const std::filesystem::path &dev_path, std::unique_ptr<uint8_t []> cfg_buf);
+               ProviderArg &p_arg, std::unique_ptr<uint8_t []> cfg_buf);
 
     template <typename E>
     constexpr uint32_t get_reg_compat(E e, auto &map) const noexcept
@@ -127,13 +132,14 @@ struct PciDevBase
         return dword & ((1 << reg_len * 8) - 1);
     }
 
-    void parse_capabilities();
-    void dump_capabilities() noexcept;
+    void ParseCapabilities();
+    void DumpCapabilities() noexcept;
 
     // Return an offset within config space where a capability
     // with a given type and ID is located
     uint16_t GetCapOffByID(const CapType cap_type, const uint16_t cap_id) const;
-    void GetResources() noexcept;
+    void AssignResources(std::vector<DevResourceDesc>) noexcept;
+    void DumpResources() noexcept;
     void ParseBars() noexcept;
     virtual void ParseIDs(PciIdParser &parser);
 

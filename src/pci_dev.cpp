@@ -100,7 +100,7 @@ static constexpr CTMap<Type1Cfg, uint32_t, type1_compat_reg_cnt> t1_reg_map {{
 }};
 
 PciDevBase::PciDevBase(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_type,
-                       const fs::path &dev_path, std::unique_ptr<uint8_t []> cfg_buf) :
+                       ProviderArg &p_arg, std::unique_ptr<uint8_t []> cfg_buf) :
     dom_(d_bdf >> 24 & 0xffff),
     bus_(d_bdf >> 16 & 0xff),
     dev_(d_bdf >> 8 & 0xff),
@@ -111,12 +111,21 @@ PciDevBase::PciDevBase(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_
     cfg_type_(cfg_len),
     type_(dev_type),
     cfg_space_(std::move(cfg_buf)),
-    sys_path_(dev_path),
+    sys_path_(),
+    cfg_buf_(nullptr),
     compat_caps_num_(0),
     extended_caps_num_(0)
-    {}
+    {
+        std::visit([&](auto &&varg) {
+            using T = std::decay_t<decltype(varg)>;
+            if constexpr (std::is_same_v<T, fs::path>)
+                sys_path_ = varg;
+            else if constexpr (std::is_same_v<T, OpaqueBuf>)
+                cfg_buf_ = std::move(varg);
+        }, p_arg);
+    }
 
-void PciDevBase::parse_capabilities()
+void PciDevBase::ParseCapabilities()
 {
     auto reg_status = reinterpret_cast<const RegStatus *>
                       (cfg_space_.get() + e_to_type(Type0Cfg::status));
@@ -157,7 +166,7 @@ void PciDevBase::parse_capabilities()
     assert(caps_.size() != 0);
 }
 
-void PciDevBase::dump_capabilities() noexcept
+void PciDevBase::DumpCapabilities() noexcept
 {
     logger.log(Verbosity::INFO, "[{:02x}:{:02x}.{:x}]: {} capabilities >>>",
                bus_, dev_, func_, caps_.size());
@@ -190,11 +199,21 @@ uint16_t PciDevBase::GetCapOffByID(const CapType cap_type, const uint16_t cap_id
 
 
 
-void PciDevBase::GetResources() noexcept
+void PciDevBase::AssignResources(std::vector<DevResourceDesc> resources) noexcept
 {
-    auto dev_resources = sysfs::get_resources(sys_path_);
-    sysfs::dump_resources(dev_resources, dev_id_str_);
-    resources_ = std::move(dev_resources);
+    resources_ = std::move(resources);
+}
+
+void PciDevBase::DumpResources() noexcept
+{
+    logger.log(Verbosity::INFO, "{} -> dump resources ({}): >>>",
+               dev_id_str_, resources_.size());
+    for (int i = 0; const auto &res_entry : resources_) {
+        logger.log(Verbosity::RAW,
+                   "[{:2}] {:#016x} {:#016x} {:#016x}", i++, std::get<0>(res_entry),
+                   std::get<1>(res_entry), std::get<2>(res_entry));
+    }
+
 }
 
 void PciDevBase::ParseBars() noexcept
