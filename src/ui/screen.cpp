@@ -251,6 +251,36 @@ void CanvasElemBus::Draw(ScrollableCanvas &canvas)
     });
 }
 
+CanvasElemMode::CanvasElemMode(bool is_live, uint16_t x, uint16_t y) :
+    is_live_(is_live),
+    mode_text_(fmt::format("mode -> [{}]", is_live ? "LIVE" : "SNAPSHOT"))
+{
+    auto hlen = mode_text_.length() * sym_width + 2 * 2;
+    auto vlen = sym_height + 2;
+    points_ = { x + 1, y + 3, hlen, vlen };
+}
+
+void CanvasElemMode::Draw(ScrollableCanvas &canvas)
+{
+    canvas.DrawBoxLine(points_, [](Pixel &p) {
+        p.bold = true;
+        p.dim = true;
+        p.foreground_color = Color::Blue;
+    });
+
+    auto x1 = std::get<0>(points_);
+    auto y1 = std::get<1>(points_);
+    x1 += 4;
+    y1 += 4;
+    canvas.DrawText(x1, y1, mode_text_, [](Pixel &p) {
+        p.bold = true;
+        //p.foreground_color = Color::Grey15;
+        //p.background_color = Color::Green;
+    });
+}
+
+
+
 // mouse click tracking stuff
 
 bool CanvasDevBlockMap::Insert(std::shared_ptr<CanvasElemPCIDev> dev)
@@ -476,7 +506,12 @@ bool PCITopoUIComp::OnEvent(Event event)
 
 void PCITopoUIComp::AddTopologyElements()
 {
-    uint16_t x = 2, y = 4;
+    // Add current operation mode info box
+    auto mode_sign = std::make_shared<CanvasElemMode>(topo_ctx_.live_mode_, 2, 0);
+    canvas_elems_.push_back(std::move(mode_sign));
+
+    uint16_t x = 2, y = 12;
+
     for (const auto &bus : topo_ctx_.buses_) {
         if (bus.second.is_root_) {
             auto conn_pos = AddRootBus(bus.second, &x, &y);

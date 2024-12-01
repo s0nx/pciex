@@ -12,32 +12,37 @@
 using   OpaqueBuf = std::unique_ptr<uint8_t []>;
 using ProviderArg = std::variant<std::filesystem::path, OpaqueBuf>;
 
+using DevResourceDesc = std::tuple<uint64_t, uint64_t, uint64_t>;
+constexpr uint32_t dev_res_desc_size = 24;
+
 // Intermidiate PCI device descriptor
 struct DeviceDesc
 {
-    uint64_t    dbdf_;          // domain + BDF
-    uint16_t    cfg_space_len_; // config space length
-    OpaqueBuf   cfg_space_;     // buffer holding a copy of config space
-    ProviderArg arg_;
+    uint64_t                     dbdf_;          // domain + BDF
+    uint16_t                     cfg_space_len_; // config space length
+    OpaqueBuf                    cfg_space_;     // buffer holding a copy of config space
+    std::vector<DevResourceDesc> resources_;
+    std::string                  driver_name_;
+    uint16_t                     numa_node_;
+    uint16_t                     iommu_group_;
+    ProviderArg                  arg_;
 };
 
-using DevResourceDesc = std::tuple<uint64_t, uint64_t, uint64_t>;
 // dom, bus, is root bus
-using BusDesc = std::tuple<uint16_t, uint8_t, uint8_t>;
+using BusDesc = std::tuple<uint16_t, uint16_t, uint16_t>;
+constexpr uint32_t bus_desc_size = 6;
 
 struct Provider
 {
     virtual
-    std::vector<BusDesc> GetBusDescriptors() const = 0;
+    std::string GetProviderName() const = 0;
     virtual
-    std::vector<DeviceDesc> GetPCIDevDescriptors() const = 0;
+    std::vector<BusDesc> GetBusDescriptors() = 0;
+    virtual
+    std::vector<DeviceDesc> GetPCIDevDescriptors() = 0;
 
     virtual
-    std::vector<DevResourceDesc> GetPCIDevResources(const ProviderArg &arg) const = 0;
-    virtual
-    std::string_view GetDriver(const ProviderArg &arg) const = 0;
-    virtual
-    int32_t GetNumaNode(const ProviderArg &arg) const = 0;
-    virtual
-    uint32_t GetIommuGroup(const ProviderArg &arg) const = 0;
+    void SaveState(const std::vector<DeviceDesc> &devs,
+                   const std::vector<BusDesc> &buses) = 0;
+
 };

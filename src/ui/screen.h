@@ -136,6 +136,18 @@ struct CanvasElemBus : public CanvasElementBase
     void Draw(ScrollableCanvas &canvas) override;
 };
 
+struct CanvasElemMode : public CanvasElementBase
+{
+    bool        is_live_;
+    std::string mode_text_;
+    ShapeDesc   points_;
+
+    CanvasElemMode() = delete;
+    CanvasElemMode(bool is_live, uint16_t x, uint16_t y);
+
+    void Draw(ScrollableCanvas &canvas) override;
+};
+
 class CanvasScrollNodeBase : public ftxui::Node
 {
 public:
@@ -340,7 +352,7 @@ private:
   std::shared_ptr<PCITopoUIComp>    topo_canvas_;
   ftxui::Component                  topo_canvas_comp_;
   ftxui::Component                  main_comp_split_;
-  std::shared_ptr<PCIRegsComponent> pci_regs_comp_;
+  ftxui::Component                  pci_regs_comp_;
 
   int                               vert_split_off_;
   bool                              show_help_;

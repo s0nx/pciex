@@ -76,7 +76,7 @@ void ParseCmdLineOptions(CmdLOpts &cmdl_opts, int argc, char *argv[])
         ->check(CLI::Validator(PreceedPathValidator(), {}));
 
     sgrp->add_option_function<std::string>(
-            "-s,--save-snapshot ",
+            "-s,--view-snapshot ",
             [&](const std::string &val) {
                 cmdl_opts.snapshot_path_ = val;
                 cmdl_opts.mode_ = OperationMode::SnapshotView;
@@ -121,7 +121,7 @@ bool OpModeNeedsElPriv(const OperationMode mode)
 
 void CmdLOpts::Dump()
 {
-    logger.log(Verbosity::INFO, "mode: {}, snapshot path: {}, elevated privileges: {}",
+    logger.log(Verbosity::INFO, "mode: {}, snapshot path: {}, requires elevated privileges: {}",
                OpModeName(mode_),
                snapshot_path_,
                OpModeNeedsElPriv(mode_));

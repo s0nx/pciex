@@ -48,6 +48,7 @@ target_sources(pciex PRIVATE
     src/pci_topo.cpp
     src/pci_dev.cpp
     src/pci_regs.cpp
+    src/snapshot.cpp
     src/util.cpp
     src/ui/common_comp.cpp
     src/ui/compat_cap_comp.cpp

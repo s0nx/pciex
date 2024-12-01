@@ -56,46 +56,51 @@ vm::VmallocStats::GetMappingInRange(uint64_t pa_start, uint64_t pa_end)
 // See mm/vmalloc.c: __get_vm_area_node() for details.
 void vm::VmallocStats::Parse()
 {
-    std::ifstream proc_vminfo(VmallocInfoFile.data(), std::ios::in);
-    if (!proc_vminfo.is_open()) {
-        logger.log(Verbosity::ERR, "Failed to open /proc/vmallocinfo");
-        return;
+    try {
+        std::ifstream proc_vminfo(VmallocInfoFile.data(), std::ios::in);
+        if (!proc_vminfo.is_open()) {
+            logger.log(Verbosity::ERR, "Failed to open /proc/vmallocinfo");
+            return;
+        }
+
+        std::string mapping_entry;
+        while (std::getline(proc_vminfo, mapping_entry)) {
+
+            // Not interested in non-ioremap allocations for now
+            if (!mapping_entry.ends_with("ioremap"))
+                continue;
+
+            VmallocEntry entry;
+            std::string::size_type s_pos = 0, e_pos;
+
+            // VA start
+            e_pos = mapping_entry.find("-");
+            entry.start_ = std::stoull(mapping_entry.substr(s_pos, e_pos - s_pos),
+                                      nullptr, 16);
+            // VA end
+            s_pos = e_pos + 1;
+            e_pos = mapping_entry.find(" ");
+            entry.end_ = std::stoull(mapping_entry.substr(s_pos, e_pos - s_pos),
+                                    nullptr, 16);
+            entry.end_ -= vm::pg_size;
+            entry.len_ = entry.end_ - entry.start_;
+
+            // phys addr
+            s_pos = mapping_entry.find("=", e_pos) + 1;
+            e_pos = mapping_entry.find(" ", s_pos);
+            entry.pa_ = std::stoull(mapping_entry.substr(s_pos, e_pos - s_pos),
+                                   nullptr, 16);
+            vm_entries_.push_back(std::move(entry));
+        }
+
+        std::ranges::sort(vm_entries_, [](const auto &a, const auto &b) {
+                          return a.pa_ < b.pa_; });
+
+        vm_info_available_ = true;
+    } catch (std::exception &ex) {
+        logger.log(Verbosity::ERR, "Exception occured while parsing /proc/vmallocinfo: {}", ex.what());
+        throw;
     }
-
-    std::string mapping_entry;
-    while (std::getline(proc_vminfo, mapping_entry)) {
-
-        // Not interested in non-ioremap allocations for now
-        if (!mapping_entry.ends_with("ioremap"))
-            continue;
-
-        VmallocEntry entry;
-        std::string::size_type s_pos = 0, e_pos;
-
-        // VA start
-        e_pos = mapping_entry.find("-");
-        entry.start_ = std::stoull(mapping_entry.substr(s_pos, e_pos - s_pos),
-                                  nullptr, 16);
-        // VA end
-        s_pos = e_pos + 1;
-        e_pos = mapping_entry.find(" ");
-        entry.end_ = std::stoull(mapping_entry.substr(s_pos, e_pos - s_pos),
-                                nullptr, 16);
-        entry.end_ -= vm::pg_size;
-        entry.len_ = entry.end_ - entry.start_;
-
-        // phys addr
-        s_pos = mapping_entry.find("=", e_pos) + 1;
-        e_pos = mapping_entry.find(" ", s_pos);
-        entry.pa_ = std::stoull(mapping_entry.substr(s_pos, e_pos - s_pos),
-                               nullptr, 16);
-        vm_entries_.push_back(std::move(entry));
-    }
-
-    std::ranges::sort(vm_entries_, [](const auto &a, const auto &b) {
-                      return a.pa_ < b.pa_; });
-
-    vm_info_available_ = true;
 }
 
 bool sys::IsKptrSet()

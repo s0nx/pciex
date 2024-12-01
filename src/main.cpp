@@ -6,6 +6,7 @@
 #include "config.h"
 #include "log.h"
 #include "linux-sysfs.h"
+#include "snapshot.h"
 #include "util.h"
 #include "ui/screen.h"
 
@@ -15,70 +16,92 @@ cfg::CmdLOpts    cmdline_options;
 vm::VmallocStats vm_info;
 Logger           logger;
 
+using Providers = std::pair<std::unique_ptr<Provider>, std::unique_ptr<Provider>>;
+static Providers GetProvidersForOpMode(const cfg::CmdLOpts &opts);
+
 int main(int argc, char *argv[])
 {
-    cfg::ParseCmdLineOptions(cmdline_options, argc, argv);
-
     try {
+        cfg::ParseCmdLineOptions(cmdline_options, argc, argv);
+
         logger.init();
-    } catch (std::exception &ex) {
-        fmt::print("{}", ex.what());
-        std::exit(EXIT_FAILURE);
-    }
 
-    cmdline_options.Dump();
+        cmdline_options.Dump();
 
-    if (cfg::OpModeNeedsElPriv(cmdline_options.mode_)) {
-        if (getuid()) {
-            fmt::print("'pciex' must be run with root privileges in [{}] mode. Exiting.\n",
-                       cfg::OpModeName(cmdline_options.mode_));
-            std::exit(EXIT_FAILURE);
+        if (cfg::OpModeNeedsElPriv(cmdline_options.mode_)) {
+            if (getuid()) {
+                fmt::print("'pciex' must be run with root privileges in [{}] mode. Exiting.\n",
+                           cfg::OpModeName(cmdline_options.mode_));
+                throw std::runtime_error("Insufficient execution privileges");
+            }
         }
-    }
 
-    if (std::endian::native != std::endian::little) {
-        fmt::print("Non little-endian platforms are not supported by now. Exiting\n");
-        std::exit(EXIT_FAILURE);
-    }
+        if (std::endian::native != std::endian::little) {
+            fmt::print("Non little-endian platforms are not supported by now. Exiting.\n");
+            throw std::runtime_error("Unsupported endianness");
+        }
 
-    if (sys::IsKptrSet()) {
-        try {
+        if (sys::IsKptrSet())
             vm_info.Parse();
-        } catch (std::exception &ex) {
-            logger.log(Verbosity::ERR, "Exception occured while parsing /proc/vmallocinfo: {}", ex.what());
+        else
+            logger.log(Verbosity::WARN, "vmalloced addresses are hidden\n");
+
+        if (vm_info.InfoAvailable())
+            vm_info.DumpStats();
+
+        pci::PCITopologyCtx topology(cmdline_options.mode_ == cfg::OperationMode::Live);
+        auto [capture_provider, store_provider] = GetProvidersForOpMode(cmdline_options);
+
+        if (cmdline_options.mode_ == cfg::OperationMode::SnapshotCapture) {
+            topology.Capture(*capture_provider, *store_provider);
+        } else {
+            topology.Populate(*capture_provider);
+            topology.DumpData();
+
+            std::unique_ptr<ui::ScreenCompCtx> screen_comp_ctx;
+            ftxui::Component                   main_comp;
+
+            try {
+                screen_comp_ctx.reset(new ui::ScreenCompCtx(topology));
+                main_comp = screen_comp_ctx->Create();
+            } catch (std::exception &ex) {
+                logger.log(Verbosity::FATAL, "Failed to initialize screen components: {}", ex.what());
+                throw;
+            }
+
+            auto screen = ftxui::ScreenInteractive::Fullscreen();
+            screen.Loop(main_comp);
         }
-    } else {
-        logger.log(Verbosity::WARN, "vmalloced addresses are hidden\n");
-    }
-
-    if (vm_info.InfoAvailable())
-        vm_info.DumpStats();
-
-    auto sysfs_provider = sysfs::SysfsProvider();
-
-    pci::PCITopologyCtx topology;
-    try {
-        topology.Populate(sysfs_provider);
     } catch (std::exception &ex) {
-        logger.log(Verbosity::FATAL, "{}", ex.what());
-        std::exit(EXIT_FAILURE);
+        fmt::print("[{}] mode failure -> {}\nCheck log for details\n",
+                   cfg::OpModeName(cmdline_options.mode_), ex.what());
+        return EXIT_FAILURE;
     }
 
-    topology.DumpData();
+    return EXIT_SUCCESS;
+}
 
-    std::unique_ptr<ui::ScreenCompCtx> screen_comp_ctx;
-    ftxui::Component                   main_comp;
-
+static Providers GetProvidersForOpMode(const cfg::CmdLOpts &opts)
+{
     try {
-        screen_comp_ctx.reset(new ui::ScreenCompCtx(topology));
-        main_comp = screen_comp_ctx->Create();
+        std::unique_ptr<Provider> capture_provider;
+        std::unique_ptr<Provider> store_provider;
+
+        switch (opts.mode_) {
+        case cfg::OperationMode::Live:
+            capture_provider.reset(new sysfs::SysfsProvider());
+            break;
+        case cfg::OperationMode::SnapshotView:
+            capture_provider.reset(new snapshot::SnapshotProvider(opts.snapshot_path_));
+            break;
+        case cfg::OperationMode::SnapshotCapture:
+            capture_provider.reset(new sysfs::SysfsProvider());
+            store_provider.reset(new snapshot::SnapshotProvider(opts.snapshot_path_));
+        }
+
+        return {std::move(capture_provider), std::move(store_provider)};
     } catch (std::exception &ex) {
-        logger.log(Verbosity::FATAL, "{}", ex.what());
-        std::exit(EXIT_FAILURE);
+        logger.log(Verbosity::FATAL, "Failed to initialize providers: {}", ex.what());
+        throw;
     }
-
-    auto screen = ftxui::ScreenInteractive::Fullscreen();
-    screen.Loop(main_comp);
-
-    return 0;
 }

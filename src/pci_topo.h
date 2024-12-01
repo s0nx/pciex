@@ -39,13 +39,23 @@ public:
 
 struct PCITopologyCtx
 {
+    bool                                     live_mode_;
     PciObjCreator                            dev_creator_;
     PciIdParser                              iparser_;
     std::vector<std::shared_ptr<PciDevBase>> devs_;
     std::map<uint16_t, PCIBus>               buses_;
 
-    void Populate(const Provider &);
+    PCITopologyCtx(bool live_mode) :
+        live_mode_(live_mode),
+        dev_creator_(),
+        iparser_(),
+        devs_(),
+        buses_()
+    {}
+
+    void Populate(Provider &);
     void DumpData() const noexcept;
+    void Capture(Provider &, Provider &);
 
     //XXX: DEBUG
     void PrintBus(const PCIBus &, int off);

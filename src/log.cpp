@@ -29,8 +29,6 @@ static fs::path CreateLogsDir()
         gid = std::atoi(sudo_gid_env);
         if (uid == 0 || gid == 0)
             throw std::runtime_error("Failed to convert uid/gid str to int");
-
-        fmt::print("detected sudo: uid {} gid {} \n", uid, gid);
     } else {
         uid = getuid();
         gid = getgid();

@@ -20,7 +20,7 @@ constexpr std::string_view pci_bus_path {"/sys/class/pci_bus"};
 // 0000:00 -> ../../devices/pci0000:00/pci_bus/0000:00              <- root bus
 // 0000:02 -> ../../devices/pci0000:00/0000:00:06.0/pci_bus/0000:02 <- 'regular' bus
 std::vector<BusDesc>
-SysfsProvider::GetBusDescriptors() const
+SysfsProvider::GetBusDescriptors()
 {
     std::vector<BusDesc> bus_vt;
 
@@ -100,42 +100,14 @@ static cfg_space_desc GetCfgSpaceBuf(const fs::path &sysfs_dev_entry)
     return std::make_pair(std::move(ptr), static_cast<int32_t>(cfg_size));
 }
 
-std::vector<DeviceDesc>
-SysfsProvider::GetPCIDevDescriptors() const
-{
-    std::vector<DeviceDesc> devices;
-
-    logger.log(Verbosity::INFO, "Scanning {}...", pci_devs_path);
-
-    for (const auto &pci_dev_dir_e : fs::directory_iterator {pci_devs_path}) {
-        uint32_t dom, bus, dev, func;
-        auto res = std::sscanf(pci_dev_dir_e.path().filename().c_str(),
-                               "%4u:%2x:%2x.%u", &dom, &bus, &dev, &func);
-        if (res != 4) {
-            throw std::runtime_error(fmt::format("Failed to parse BDF for {}\n",
-                                     pci_dev_dir_e.path().string()));
-        } else {
-            logger.log(Verbosity::INFO, "Got -> [{:04}:{:02x}:{:02x}.{:x}]", dom, bus, dev, func);
-
-            uint64_t d_bdf = func | (dev << 8) | (bus << 16) | (dom << 24);
-            auto [data, cfg_len] = sysfs::GetCfgSpaceBuf(pci_dev_dir_e.path());
-
-            devices.emplace_back(d_bdf, cfg_len, std::move(data), pci_dev_dir_e.path());
-        }
-    }
-    return devices;
-}
-
-
-
 // It's not possible to determine the size of the resource requested by
 // device after the address has been written into the BAR.
 // It should either be kept during configuration or new configuration should
 // be perfromed by writting all 1's to the register and reading back the value.
 // Sysfs 'resource' file is used to get the size. It is also used to corrrectly interpret
 // the BAR contents later.
-std::vector<DevResourceDesc>
-SysfsProvider::GetPCIDevResources(const ProviderArg &arg) const
+static std::vector<DevResourceDesc>
+GetPCIDevResources(const fs::path &sysfs_dev_entry)
 {
     // Depending on device type and kernel configuration, namely CONFIG_PCI_IOV,
     // amount of lines in 'resource' file might differ.
@@ -150,8 +122,6 @@ SysfsProvider::GetPCIDevResources(const ProviderArg &arg) const
     //        │            [14] (8)  - memory behind bridge
     //        │            [15] (9)  - prefetchable memory behind bridge
     //        └─           [16] (10) - < empty >
-
-    auto sysfs_dev_entry = std::get<fs::path>(arg);
 
     auto resource = fs::directory_entry(sysfs_dev_entry / "resource");
     if (!resource.exists()) {
@@ -181,10 +151,9 @@ SysfsProvider::GetPCIDevResources(const ProviderArg &arg) const
     return resources;
 }
 
-std::string_view
-SysfsProvider::GetDriver(const ProviderArg &arg) const
+static std::string
+GetDriver(const fs::path &sysfs_dev_entry)
 {
-    auto sysfs_dev_entry = std::get<fs::path>(arg);
     auto driver_link = fs::directory_entry(sysfs_dev_entry / "driver");
     if (!driver_link.exists()) {
         logger.log(Verbosity::INFO, "Driver is not loaded for {}", sysfs_dev_entry.c_str());
@@ -196,14 +165,13 @@ SysfsProvider::GetDriver(const ProviderArg &arg) const
         return {};
     } else {
         auto drv_path = fs::read_symlink(driver_link.path());
-        return drv_path.filename().c_str();
+        return drv_path.filename().string();
     }
 }
 
-int32_t
-SysfsProvider::GetNumaNode(const ProviderArg &arg) const
+static uint16_t
+GetNumaNode(const fs::path &sysfs_dev_entry)
 {
-    auto sysfs_dev_entry = std::get<fs::path>(arg);
     auto numa_node = fs::directory_entry(sysfs_dev_entry / "numa_node");
     if (!numa_node.exists()) {
         logger.log(Verbosity::INFO, "Can't get NUMA info for {}", sysfs_dev_entry.c_str());
@@ -219,13 +187,15 @@ SysfsProvider::GetNumaNode(const ProviderArg &arg) const
         in >> node_num;
     }
 
+    if (node_num < 0)
+        return std::numeric_limits<uint16_t>::max();
+
     return node_num;
 }
 
-uint32_t
-SysfsProvider::GetIommuGroup(const ProviderArg &arg) const
+static uint16_t
+GetIommuGroup(const fs::path &sysfs_dev_entry)
 {
-    auto sysfs_dev_entry = std::get<fs::path>(arg);
     auto iommu_group = fs::directory_entry(sysfs_dev_entry / "iommu_group");
     if (!iommu_group.exists()) {
         logger.log(Verbosity::INFO, "iommu_group entry is missing for {}", sysfs_dev_entry.c_str());
@@ -239,6 +209,51 @@ SysfsProvider::GetIommuGroup(const ProviderArg &arg) const
         auto group = fs::read_symlink(iommu_group.path());
         return std::stoi(group.filename().string());
     }
+}
+
+std::vector<DeviceDesc>
+SysfsProvider::GetPCIDevDescriptors()
+{
+    std::vector<DeviceDesc> devices;
+
+    logger.log(Verbosity::INFO, "Scanning {}...", pci_devs_path);
+
+    for (const auto &pci_dev_dir_e : fs::directory_iterator {pci_devs_path}) {
+        uint32_t dom, bus, dev, func;
+        auto res = std::sscanf(pci_dev_dir_e.path().filename().c_str(),
+                               "%4u:%2x:%2x.%u", &dom, &bus, &dev, &func);
+        if (res != 4) {
+            throw std::runtime_error(fmt::format("Failed to parse BDF for {}\n",
+                                     pci_dev_dir_e.path().string()));
+        } else {
+            logger.log(Verbosity::INFO, "Got -> [{:04}:{:02x}:{:02x}.{:x}]", dom, bus, dev, func);
+
+            uint64_t d_bdf = func | (dev << 8) | (bus << 16) | (dom << 24);
+            auto [data, cfg_len] = GetCfgSpaceBuf(pci_dev_dir_e.path());
+
+            // try to acquire resources
+            auto resources = GetPCIDevResources(pci_dev_dir_e.path());
+            if (resources.empty())
+                throw std::runtime_error(fmt::format("Failed to acquire resources for {}\n",
+                                         pci_dev_dir_e.path().string()));
+
+            auto driver_name = GetDriver(pci_dev_dir_e.path());
+            auto numa_node = GetNumaNode(pci_dev_dir_e.path());
+            auto iommu_group = GetIommuGroup(pci_dev_dir_e.path());
+
+            devices.emplace_back(d_bdf, cfg_len, std::move(data), std::move(resources),
+                                 driver_name, numa_node, iommu_group, pci_dev_dir_e.path());
+        }
+    }
+    return devices;
+}
+
+void
+SysfsProvider::SaveState([[maybe_unused]]const std::vector<DeviceDesc> &devs,
+                         [[maybe_unused]]const std::vector<BusDesc> &buses)
+{
+    throw std::runtime_error(fmt::format("{} provider doesn't support state saving",
+                             GetProviderName()));
 }
 
 } // namespace sysfs

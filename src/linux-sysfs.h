@@ -12,19 +12,14 @@ namespace sysfs {
 
 struct SysfsProvider : public Provider
 {
-    std::vector<BusDesc>         GetBusDescriptors() const override;
-    // <dom+BDF, cfg space len, cfg space buf, path to device in sysfs>
-    std::vector<DeviceDesc>      GetPCIDevDescriptors() const override;
+    std::string GetProviderName() const override { return "SysFS"; }
 
-    // Get PCI device resources from "resource" file
-    std::vector<DevResourceDesc>
-    GetPCIDevResources(const ProviderArg &arg) const override;
-    std::string_view
-    GetDriver(const ProviderArg &arg) const override;
-    int32_t
-    GetNumaNode(const ProviderArg &arg) const override;
-    uint32_t
-    GetIommuGroup(const ProviderArg &arg) const override;
+    std::vector<BusDesc>         GetBusDescriptors() override;
+    // <dom+BDF, cfg space len, cfg space buf, path to device in sysfs>
+    std::vector<DeviceDesc>      GetPCIDevDescriptors() override;
+
+    void SaveState(const std::vector<DeviceDesc> &devs,
+                   const std::vector<BusDesc> &buses) override;
 };
 
 } // namespace sysfs
