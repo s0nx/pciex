@@ -209,7 +209,7 @@ public:
         AddTopologyElements();
     }
 
-    ftxui::Element Render() override final;
+    ftxui::Element OnRender() override final;
 
     bool OnEvent(ftxui::Event event) override final;
     bool Focusable() const final { return true; }
@@ -272,7 +272,7 @@ public:
     ScrollableComp(ftxui::Component child) { Add(child); }
 
 private:
-    ftxui::Element Render() override final;
+    ftxui::Element OnRender() override final;
     bool OnEvent(ftxui::Event event) final;
     bool Focusable() const final { return true;  }
 
@@ -299,7 +299,7 @@ struct PCIRegsComponent : ftxui::ComponentBase
     int                              split_off_ {40};
     uint32_t                         interactive_elem_max_ {1024};
 
-    ftxui::Element Render() override;
+    ftxui::Element OnRender() override;
     bool Focusable() const final { return true; }
 
     PCIRegsComponent(std::shared_ptr<PCITopoUIComp> topo_comp)
@@ -322,7 +322,7 @@ class BorderedHoverComp : public ftxui::ComponentBase
 public:
     BorderedHoverComp(ftxui::Component child) { Add(child);  }
 private:
-    ftxui::Element Render() override final;
+    ftxui::Element OnRender() override final;
     bool           OnEvent(ftxui::Event event) override;
 
     ftxui::Box box_;

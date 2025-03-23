@@ -15,7 +15,7 @@ namespace ui {
 //
 // push-pull button stuff
 //
-Element PushPullButton::Render()
+Element PushPullButton::OnRender()
 {
     const bool active = Active();
     const bool focused = Focused();

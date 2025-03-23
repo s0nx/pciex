@@ -370,7 +370,7 @@ scrollable_canvas(ConstRef<ScrollableCanvas> canvas)
 }
 
 
-Element PCITopoUIComp::Render()
+Element PCITopoUIComp::OnRender()
 {
     const bool is_focused = Focused();
     const bool is_active = Active();
@@ -681,7 +681,7 @@ GetCanvasSizeEstimate(const pci::PCITopologyCtx &ctx, ElemReprMode mode) noexcep
 //}
 
 // scrollable component
-Element ScrollableComp::Render() {
+Element ScrollableComp::OnRender() {
     auto focused = Focused() ? ftxui::focus : ftxui::select;
     auto style = nothing;
 
@@ -732,7 +732,7 @@ static Component MakeScrollableComp(Component child)
     return Make<ScrollableComp>(std::move(child));
 }
 
-Element PCIRegsComponent::Render()
+Element PCIRegsComponent::OnRender()
 {
     auto selected_device = topology_component_->GetSelectedDev();
     if (cur_dev_ == selected_device) {
@@ -862,7 +862,7 @@ void PCIRegsComponent::FinalizeComponent()
 
 }
 
-Element BorderedHoverComp::Render()
+Element BorderedHoverComp::OnRender()
 {
     const bool is_focused = Focused();
     const bool is_active = Active();

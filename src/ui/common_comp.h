@@ -17,7 +17,7 @@ class PushPullButton : public ftxui::ComponentBase, public ftxui::ButtonOption
 public:
     explicit PushPullButton(ButtonOption option) : ButtonOption(std::move(option)) {}
 
-    ftxui::Element Render() override;
+    ftxui::Element OnRender() override;
 
     ftxui::Decorator AnimatedColorStyle();
     void SetAnimationTarget(float target);
