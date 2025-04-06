@@ -47,7 +47,8 @@ std::string_view PciIdParser::vendor_name_lookup(const uint16_t vid)
     auto cached_vid_desc = ids_cache_.find(vid);
     if (cached_vid_desc != ids_cache_.end())
     {
-        logger.log(Verbosity::INFO, "Found cached vendor desc for VID {:x}", vid);
+        logger.log(Verbosity::INFO, "Found cached vendor desc for VID {:x} db off {}",
+                   vid, cached_vid_desc->second.vendor_db_off_);
         return cached_vid_desc->second.vendor_name_;
     }
 
@@ -74,6 +75,9 @@ std::string_view PciIdParser::vendor_name_lookup(const uint16_t vid)
     /* Cache found entry. @vendor_db_off_ holds the position in buffer
      * right after the vendor name string
      */
+    logger.log(Verbosity::INFO, "Adding vendor {:x} [{}] db off {} to cache",
+               vid, vid_str, vid_str_end_pos + 1);
+
     auto cache_upd_res = ids_cache_.emplace(std::make_pair(vid,
                                    CachedDbVendorEntry(vid_str, vid_str_end_pos + 1)));
     if (!cache_upd_res.second)
@@ -99,18 +103,21 @@ std::string_view PciIdParser::device_name_lookup(const uint16_t vid,
     /* Try to obtain device name from cache */
     auto cached_dev_desc = cached_vid_desc->second.devs_.find(dev_id);
     if (cached_dev_desc != cached_vid_desc->second.devs_.end()) {
+        logger.log(Verbosity::INFO, "Found device {:x} [{}] db off {} in cache",
+                   dev_id, cached_dev_desc->second.device_name_,
+                   cached_dev_desc->second.device_db_off_);
         return cached_dev_desc->second.device_name_;
     } else {
         /* nothing is cached, start searching from @vendor_db_off_ */
-        auto tgt_dev_str = fmt::format("\t{:04x}", dev_id);
+        auto tgt_dev_str = fmt::format("\n\t{:04x}", dev_id);
         auto dev_id_pos = db_str_.find(tgt_dev_str, cached_vid_desc->second.vendor_db_off_);
         if (dev_id_pos == std::string_view::npos) {
             logger.log(Verbosity::INFO, "Could not parse device name for ID {:x}", dev_id);
             return std::string_view{};
         }
 
-        /* '\t' + dev ID len + two WS */
-        constexpr off_t off = 1 + 4 + 2;
+        /* '\n' + '\t' + dev ID len + two WS */
+        constexpr off_t off = 1 + 1 + 4 + 2;
         auto dev_name_start_pos = dev_id_pos + off;
         auto dev_name_end_pos = db_str_.find('\n', dev_name_start_pos);
 
@@ -120,6 +127,10 @@ std::string_view PciIdParser::device_name_lookup(const uint16_t vid,
         /* Cache found dev name entry. @device_db_off_ holds the position in buffer
          * right after device name string. This might be useful when searching for
          * Subsystem ID/Subsystem Vendor ID pair later */
+
+        logger.log(Verbosity::INFO, "Adding device {:x} [{}] db off {} to cache",
+                   dev_id, dev_name_str, dev_name_end_pos + 1);
+
         auto res = cached_vid_desc->second.devs_.emplace(
             std::make_pair(dev_id, CachedDbDevEntry(dev_name_str, dev_name_end_pos + 1))
         );
