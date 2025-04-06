@@ -18,6 +18,8 @@ struct SysfsProvider : public Provider
     // <dom+BDF, cfg space len, cfg space buf, path to device in sysfs>
     std::vector<DeviceDesc>      GetPCIDevDescriptors() override;
 
+    bool                         ShouldParseV2PBarMappingInfo() override { return true; }
+
     void SaveState(const std::vector<DeviceDesc> &devs,
                    const std::vector<BusDesc> &buses) override;
 };

@@ -105,6 +105,7 @@ public:
     std::vector<BusDesc>         GetBusDescriptors() override;
     std::vector<DeviceDesc>      GetPCIDevDescriptors() override;
     std::string                  GetProviderName() const override { return "Snapshot"; }
+    bool                         ShouldParseV2PBarMappingInfo() override { return false; }
 
     void SaveState(const std::vector<DeviceDesc> &devs,
                    const std::vector<BusDesc> &buses) override;

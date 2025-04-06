@@ -42,6 +42,9 @@ struct Provider
     std::vector<DeviceDesc> GetPCIDevDescriptors() = 0;
 
     virtual
+    bool ShouldParseV2PBarMappingInfo() = 0;
+
+    virtual
     void SaveState(const std::vector<DeviceDesc> &devs,
                    const std::vector<BusDesc> &buses) = 0;
 

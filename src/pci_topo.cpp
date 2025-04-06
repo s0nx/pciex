@@ -35,7 +35,8 @@ void PCITopologyCtx::Populate(Provider &provider)
             pci_dev->AssignResources(dev_desc.resources_);
             pci_dev->DumpResources();
             pci_dev->ParseBars();
-            pci_dev->ParseBarsV2PMappings();
+            if (provider.ShouldParseV2PBarMappingInfo())
+                pci_dev->ParseBarsV2PMappings();
             pci_dev->ParseIDs(iparser_);
             auto drv_name = dev_desc.driver_name_;
             logger.log(Verbosity::INFO, "{} driver: {}", pci_dev->dev_id_str_,
