@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2023-2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2023-2025 Petr Vyazovik <xen@f-m.fm>
 
 #include "linux-sysfs.h"
 #include "log.h"
 
 #include <fstream>
-#include <fmt/format.h>
+#include <format>
 
 extern Logger logger;
 
@@ -78,13 +78,13 @@ static cfg_space_desc GetCfgSpaceBuf(const fs::path &sysfs_dev_entry)
 
     auto cfg_fd = std::fopen(config.path().c_str(), "r");
     if (!cfg_fd)
-        throw std::runtime_error(fmt::format("Failed to open {}", config.path().string()));
+        throw std::runtime_error(std::format("Failed to open {}", config.path().string()));
 
     std::unique_ptr<uint8_t[]> ptr { new (std::nothrow) uint8_t [cfg_size] };
     if (!ptr)
     {
         std::fclose(cfg_fd);
-        throw std::runtime_error(fmt::format("Failed to allocate cfg buffer for {}",
+        throw std::runtime_error(std::format("Failed to allocate cfg buffer for {}",
                                              config.path().string()));
     }
 
@@ -92,7 +92,7 @@ static cfg_space_desc GetCfgSpaceBuf(const fs::path &sysfs_dev_entry)
     if (read != 1)
     {
         std::fclose(cfg_fd);
-        throw std::runtime_error(fmt::format("Failed to read cfg buffer for {}",
+        throw std::runtime_error(std::format("Failed to read cfg buffer for {}",
                                              config.path().string()));
     }
 
@@ -223,7 +223,7 @@ SysfsProvider::GetPCIDevDescriptors()
         auto res = std::sscanf(pci_dev_dir_e.path().filename().c_str(),
                                "%4u:%2x:%2x.%u", &dom, &bus, &dev, &func);
         if (res != 4) {
-            throw std::runtime_error(fmt::format("Failed to parse BDF for {}\n",
+            throw std::runtime_error(std::format("Failed to parse BDF for {}\n",
                                      pci_dev_dir_e.path().string()));
         } else {
             logger.log(Verbosity::INFO, "Got -> [{:04}:{:02x}:{:02x}.{:x}]", dom, bus, dev, func);
@@ -234,7 +234,7 @@ SysfsProvider::GetPCIDevDescriptors()
             // try to acquire resources
             auto resources = GetPCIDevResources(pci_dev_dir_e.path());
             if (resources.empty())
-                throw std::runtime_error(fmt::format("Failed to acquire resources for {}\n",
+                throw std::runtime_error(std::format("Failed to acquire resources for {}\n",
                                          pci_dev_dir_e.path().string()));
 
             auto driver_name = GetDriver(pci_dev_dir_e.path());
@@ -252,7 +252,7 @@ void
 SysfsProvider::SaveState([[maybe_unused]]const std::vector<DeviceDesc> &devs,
                          [[maybe_unused]]const std::vector<BusDesc> &buses)
 {
-    throw std::runtime_error(fmt::format("{} provider doesn't support state saving",
+    throw std::runtime_error(std::format("{} provider doesn't support state saving",
                              GetProviderName()));
 }
 

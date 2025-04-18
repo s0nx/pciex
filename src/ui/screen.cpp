@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2023-2024 Petr Vyazovik <xen@f-m.fm>
-
-#include <fmt/format.h>
+// Copyright (C) 2023-2025 Petr Vyazovik <xen@f-m.fm>
 
 #include "log.h"
 #include "screen.h"
@@ -11,6 +9,7 @@
 #include "pciex_version.h"
 
 #include <algorithm>
+#include <format>
 
 extern Logger logger;
 
@@ -126,21 +125,21 @@ CanvasElemPCIDev::CanvasElemPCIDev(std::shared_ptr<pci::PciDevBase> dev, ElemRep
     size_t max_hlen, max_vlen;
 
     // initialize text array
-    auto bdf_id_str = fmt::format("{} | [{:04x}:{:04x}]", dev->dev_id_str_,
+    auto bdf_id_str = std::format("{} | [{:04x}:{:04x}]", dev->dev_id_str_,
                                   dev->get_vendor_id(), dev->get_device_id());
     max_hlen = bdf_id_str.length();
     text_data_.push_back(std::move(bdf_id_str));
 
     if (repr_mode == ElemReprMode::Verbose) {
         if (!dev->ids_names_[pci::VENDOR].empty()) {
-            auto vendor_name = fmt::format("{}", dev->ids_names_[pci::VENDOR]);
+            auto vendor_name = std::format("{}", dev->ids_names_[pci::VENDOR]);
             if (vendor_name.length() > max_hlen)
                 max_hlen = vendor_name.length();
             text_data_.push_back(std::move(vendor_name));
         }
 
         if (!dev->ids_names_[pci::DEVICE].empty()) {
-            auto device_name = fmt::format("{}", dev->ids_names_[pci::DEVICE]);
+            auto device_name = std::format("{}", dev->ids_names_[pci::DEVICE]);
             if (device_name.length() > max_hlen)
                 max_hlen = device_name.length();
             text_data_.push_back(std::move(device_name));
@@ -220,7 +219,7 @@ void CanvasElemPCIDev::Draw(ScrollableCanvas &canvas)
 }
 
 CanvasElemBus::CanvasElemBus(const pci::PCIBus &bus, uint16_t x, uint16_t y)
-    : bus_id_str_(fmt::format("[ {:04x}:{:02x} ]", bus.dom_, bus.bus_nr_))
+    : bus_id_str_(std::format("[ {:04x}:{:02x} ]", bus.dom_, bus.bus_nr_))
 {
     auto hlen = bus_id_str_.length() * sym_width + 2 * 2;
     auto vlen = sym_height + 2;
@@ -253,7 +252,7 @@ void CanvasElemBus::Draw(ScrollableCanvas &canvas)
 
 CanvasElemMode::CanvasElemMode(bool is_live, uint16_t x, uint16_t y) :
     is_live_(is_live),
-    mode_text_(fmt::format("mode -> [{}]", is_live ? "LIVE" : "SNAPSHOT"))
+    mode_text_(std::format("mode -> [{}]", is_live ? "LIVE" : "SNAPSHOT"))
 {
     auto hlen = mode_text_.length() * sym_width + 2 * 2;
     auto vlen = sym_height + 2;
@@ -896,7 +895,7 @@ bool BorderedHoverComp::OnEvent(Event event)
 
 static Element GetVersion()
 {
-    return text(fmt::format(" ver: {} {}", pciex_current_version,
+    return text(std::format(" ver: {} {}", pciex_current_version,
                                            pciex_current_hash));
 }
 

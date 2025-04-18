@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2024-2025 Petr Vyazovik <xen@f-m.fm>
 
 #include "pci_dev.h"
 #include "linux-sysfs.h"
@@ -8,8 +8,7 @@
 #include "util.h"
 
 #include <cassert>
-
-#include <fmt/format.h>
+#include <format>
 
 namespace fs = std::filesystem;
 
@@ -107,7 +106,7 @@ PciDevBase::PciDevBase(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_
     dev_(d_bdf >> 8 & 0xff),
     func_(d_bdf & 0xff),
     ids_names_(IDS_TYPES_CNT),
-    dev_id_str_(fmt::format("[{:02x}:{:02x}.{:x}]", bus_, dev_, func_)),
+    dev_id_str_(std::format("[{:02x}:{:02x}.{:x}]", bus_, dev_, func_)),
     is_pcie_(false),
     cfg_type_(cfg_len),
     type_(dev_type),

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2023-2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2023-2025 Petr Vyazovik <xen@f-m.fm>
 
 #include <cstdint>
 #include <filesystem>
-
-#include <fmt/format.h>
+#include <format>
 
 #include "ids_parse.h"
 #include "log.h"
@@ -26,13 +25,13 @@ PciIdParser::PciIdParser()
 
     auto db_fd = std::fopen(ids_db_path.c_str(), "r");
     if (!db_fd)
-        throw std::runtime_error(fmt::format("Failed to open PCI ids db {}", ids_db_path.string()));
+        throw std::runtime_error(std::format("Failed to open PCI ids db {}", ids_db_path.string()));
 
     auto res = std::fread(buf_.get(), db_size_, 1, db_fd);
     if (res != 1)
     {
         std::fclose(db_fd);
-        throw std::runtime_error(fmt::format("Failed to read PCI ids db: {}", ids_db_path.string()));
+        throw std::runtime_error(std::format("Failed to read PCI ids db: {}", ids_db_path.string()));
     }
 
     std::fclose(db_fd);
@@ -52,7 +51,7 @@ std::string_view PciIdParser::vendor_name_lookup(const uint16_t vid)
         return cached_vid_desc->second.vendor_name_;
     }
 
-    auto tgt_vid_str = fmt::format("\n{:04x}", vid);
+    auto tgt_vid_str = std::format("\n{:04x}", vid);
 
     auto vid_pos = db_str_.find(tgt_vid_str);
     if (vid_pos == std::string_view::npos)
@@ -109,7 +108,7 @@ std::string_view PciIdParser::device_name_lookup(const uint16_t vid,
         return cached_dev_desc->second.device_name_;
     } else {
         /* nothing is cached, start searching from @vendor_db_off_ */
-        auto tgt_dev_str = fmt::format("\n\t{:04x}", dev_id);
+        auto tgt_dev_str = std::format("\n\t{:04x}", dev_id);
         auto dev_id_pos = db_str_.find(tgt_dev_str, cached_vid_desc->second.vendor_db_off_);
         if (dev_id_pos == std::string_view::npos) {
             logger.log(Verbosity::INFO, "Could not parse device name for ID {:x}", dev_id);
@@ -173,7 +172,7 @@ std::string_view PciIdParser::subsys_name_lookup(const uint16_t vid, const uint1
 
     auto subsys_name_spos = std::string_view::npos;
     auto subsys_name_epos = std::string_view::npos;
-    auto subsys_str = fmt::format("{:04x} {:04x}", subsys_vid, subsys_id);
+    auto subsys_str = std::format("{:04x} {:04x}", subsys_vid, subsys_id);
 
     while (true) {
         // extract next line and check it
@@ -237,7 +236,7 @@ ClassCodeInfo PciIdParser::class_info_lookup(const uint32_t ccode)
     logger.log(Verbosity::RAW, "CC: |base class {:02x}| subclass {:02x}| prog-if {:02x}|",
                base_class_code, sub_class_code, prog_iface);
 
-    auto search_str = fmt::format("C {:02x}", base_class_code);
+    auto search_str = std::format("C {:02x}", base_class_code);
     auto search_pos = db_str_.find(search_str, class_code_db_off_);
 
     logger.log(Verbosity::RAW, "class pos: {}", search_pos);
@@ -265,7 +264,7 @@ ClassCodeInfo PciIdParser::class_info_lookup(const uint32_t ccode)
     }
 
     // try to find subclass now
-    search_str = fmt::format("\n\t{:02x}", sub_class_code);
+    search_str = std::format("\n\t{:02x}", sub_class_code);
     search_pos = db_str_.find(search_str, name_epos);
     logger.log(Verbosity::RAW, "subclass pos: {}", search_pos);
     if (search_pos == std::string_view::npos || search_pos >= search_limit_pos) {
@@ -314,7 +313,7 @@ ClassCodeInfo PciIdParser::class_info_lookup(const uint32_t ccode)
     logger.log(Verbosity::RAW, "next subclass pos: {}", search_limit_pos);
 
     // try to find programming interface now
-    search_str = fmt::format("\t\t{:02x}", prog_iface);
+    search_str = std::format("\t\t{:02x}", prog_iface);
     search_pos = db_str_.find(search_str, name_epos);
     logger.log(Verbosity::RAW, "prog iface pos: {}", search_pos);
     if (search_pos == std::string_view::npos ||

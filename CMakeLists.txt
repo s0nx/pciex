@@ -5,9 +5,6 @@ project(
     LANGUAGES CXX
 )
 
-# fmtlib
-find_package(fmt REQUIRED)
-
 include(FetchContent)
 
 # FTXUI
@@ -28,7 +25,7 @@ FetchContent_MakeAvailable(cli11)
 
 # XXX: it seems target_compile_features(... cxx_std_20) doesn't propagate
 # version to cli11, so set the version explicitly
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 
 add_executable(pciex)
 
@@ -56,10 +53,9 @@ target_sources(pciex PRIVATE
     src/ui/screen.cpp
 )
 
-target_compile_features(pciex PUBLIC cxx_std_20)
+target_compile_features(pciex PUBLIC cxx_std_23)
 target_compile_options(pciex PRIVATE -Wall -Wextra -pedantic -O3)
 
-target_link_libraries(pciex PRIVATE fmt)
 target_link_libraries(pciex
     PRIVATE ftxui::screen
     PRIVATE ftxui::dom

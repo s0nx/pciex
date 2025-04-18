@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2024-2025 Petr Vyazovik <xen@f-m.fm>
 
 #include "log.h"
 
@@ -9,7 +9,8 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include <fmt/chrono.h>
+#include <chrono>
+#include <format>
 
 namespace fs = std::filesystem;
 
@@ -42,7 +43,7 @@ static fs::path CreateLogsDir()
         if (sudo_uid_env != nullptr) {
             if (chown(logs_dir, uid, gid))
                 throw std::runtime_error(
-                        fmt::format("Failed to set logs dirctory ownership, err {}",
+                        std::format("Failed to set logs dirctory ownership, err {}",
                                     errno));
         }
     }
@@ -52,8 +53,11 @@ static fs::path CreateLogsDir()
 
 static std::string GenLogFname()
 {
-    auto tm = std::time(nullptr);
-    return fmt::format("pciex_{:%Y_%m_%d_%T}.log", fmt::localtime(tm));
+    using namespace std::chrono;
+
+    auto time_now_sec = time_point_cast<seconds>(system_clock::now());
+    auto zt_now = zoned_time{current_zone(), time_now_sec};
+    return std::format("pciex_{:%Y_%m_%d_%T}.log", zt_now);
 }
 
 void Logger::init()
@@ -63,7 +67,7 @@ void Logger::init()
     log_file_ = std::fopen(log_file_path.c_str(), "w");
     if (!log_file_)
         throw std::runtime_error(
-                fmt::format("Failed to open log file {}, err {}",
+                std::format("Failed to open log file {}, err {}",
                             log_file_path.c_str(), errno));
 }
 

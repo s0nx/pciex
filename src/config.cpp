@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2024-2025 Petr Vyazovik <xen@f-m.fm>
 
 #include "config.h"
 #include "log.h"
 #include "pciex_version.h"
 #include "util.h"
 
-#include <fmt/core.h>
-
-//#include <argparse/argparse.hpp>
 #include <CLI/CLI.hpp>
 
 extern Logger logger;
@@ -89,7 +86,7 @@ void ParseCmdLineOptions(CmdLOpts &cmdl_opts, int argc, char *argv[])
 
     app.add_flag("-v, --version",
             [](std::int64_t) {
-                fmt::print("{} {}\n", pciex_current_version, pciex_current_hash);
+                std::print("{} {}\n", pciex_current_version, pciex_current_hash);
                 throw CLI::Success();
             }, "Print version and exit");
 
