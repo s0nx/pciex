@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2024-2025 Petr Vyazovik <xen@f-m.fm>
 
 #include <bitset>
-#include <fmt/format.h>
+#include <format>
 
 #include "compat_cap_comp.h"
 #include "log.h"
@@ -35,7 +35,7 @@ CompatVendorSpecCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                         CapHdrComp(vspec->hdr)
                     }));
 
-    auto buf_dump_elem = GetHexDumpElem(fmt::format("data [len {:#02x}] >>>", vspec->len),
+    auto buf_dump_elem = GetHexDumpElem(std::format("data [len {:#02x}] >>>", vspec->len),
                                         vspec_buf, vspec->len);
     Elements content_elems {
         buf_dump_elem
@@ -58,16 +58,16 @@ CompatVendorSpecCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                 content_elems.push_back(hbox({std::move(vhdr), separatorEmpty()}));
 
                 virtio::VirtIOCapID cap_id {virtio_struct->cfg_type};
-                content_elems.push_back(text(fmt::format("struct type: [{:#01x}] {}",
+                content_elems.push_back(text(std::format("struct type: [{:#01x}] {}",
                                                          virtio_struct->cfg_type,
                                                          virtio::VirtIOCapIDName(cap_id))));
                 // "PCI conf access" layout (0x5) can't be mapped by BAR.
                 // It's an alternative access method to conf regions
                 if (cap_id != virtio::VirtIOCapID::pci_cfg_acc) {
-                    content_elems.push_back(text(fmt::format("        BAR:  {:#01x}", virtio_struct->bar_idx)));
-                    content_elems.push_back(text(fmt::format("         id:  {:#02x}", virtio_struct->id)));
-                    content_elems.push_back(text(fmt::format(" BAR offset:  {:#x}", virtio_struct->bar_off)));
-                    content_elems.push_back(text(fmt::format(" struct len:  {:#x}", virtio_struct->length)));
+                    content_elems.push_back(text(std::format("        BAR:  {:#01x}", virtio_struct->bar_idx)));
+                    content_elems.push_back(text(std::format("         id:  {:#02x}", virtio_struct->id)));
+                    content_elems.push_back(text(std::format(" BAR offset:  {:#x}", virtio_struct->bar_off)));
+                    content_elems.push_back(text(std::format(" struct len:  {:#x}", virtio_struct->length)));
                 }
             }
         }
@@ -75,7 +75,7 @@ CompatVendorSpecCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
 
     auto content_elem = vbox(content_elems);
 
-    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] Vendor-Specific", off),
+    lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] Vendor-Specific", off),
                                      "Info", std::move(content_elem), &vis[i]));
 
     return {std::move(upper), std::move(lower)};
@@ -106,18 +106,18 @@ CompatPMCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
     std::bitset<5> pme_state_map {pm_cap->pmcap.pme_support};
 
     auto pm_cap_content = vbox({
-        RegFieldVerbElem(0,  2,  fmt::format(" version: {}", pm_cap->pmcap.version),
+        RegFieldVerbElem(0,  2,  std::format(" version: {}", pm_cap->pmcap.version),
                                  pm_cap->pmcap.version),
         RegFieldCompElem(3,  3,  " PME clock", pm_cap->pmcap.pme_clk == 1),
         RegFieldCompElem(4,  4,  " imm ready on D0", pm_cap->pmcap.imm_readiness_on_ret_d0 == 1),
         RegFieldCompElem(5,  5,  " device specific init", pm_cap->pmcap.dsi == 1),
-        RegFieldVerbElem(6,  8,  fmt::format(" aux current: {} mA",
+        RegFieldVerbElem(6,  8,  std::format(" aux current: {} mA",
                                  aux_max_current[pm_cap->pmcap.aux_cur]),
                                  pm_cap->pmcap.aux_cur),
         RegFieldCompElem(9,  9,  " D1 state support", pm_cap->pmcap.d1_support == 1),
         RegFieldCompElem(10, 10, " D2 state support", pm_cap->pmcap.d2_support == 1),
         RegFieldVerbElem(11, 15,
-                         fmt::format(" PME support: D0[{}] D1[{}] D2[{}] D3hot[{}] D3cold[{}]",
+                         std::format(" PME support: D0[{}] D1[{}] D2[{}] D3hot[{}] D3cold[{}]",
                                      pme_state_map[0] ? '+' : '-',
                                      pme_state_map[1] ? '+' : '-',
                                      pme_state_map[2] ? '+' : '-',
@@ -127,7 +127,7 @@ CompatPMCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
     });
 
     auto pm_ctrl_stat_content = vbox({
-        RegFieldVerbElem(0,  1,   fmt::format(" power state: D{}", pm_cap->pmcs.pwr_state),
+        RegFieldVerbElem(0,  1,   std::format(" power state: D{}", pm_cap->pmcs.pwr_state),
                                   pm_cap->pmcs.pwr_state),
         RegFieldCompElem(2,  2),
         RegFieldCompElem(3,  3,   " no soft reset", pm_cap->pmcs.no_soft_reset == 1),
@@ -140,9 +140,9 @@ CompatPMCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
         RegFieldVerbElem(24, 31,  " data", pm_cap->pmcs.data)
     });
 
-    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] Power Management", off),
+    lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] Power Management", off),
                                      "PM Capabilities +0x2", std::move(pm_cap_content), &vis[i - 2]));
-    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] Power Management", off),
+    lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] Power Management", off),
                                      "PM Ctrl/Status +0x4", std::move(pm_ctrl_stat_content),
                                      &vis[i - 1]));
 
@@ -173,10 +173,10 @@ CompatMSICap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
 
     auto msi_mc_content = vbox({
         RegFieldCompElem(0,  0, " MSI enable", msi_msg_ctrl_reg->msi_ena == 1),
-        RegFieldVerbElem(1,  3, fmt::format(" multiple msg capable: {}",
+        RegFieldVerbElem(1,  3, std::format(" multiple msg capable: {}",
                                             multi_msg_map[msi_msg_ctrl_reg->multi_msg_capable]),
                                 msi_msg_ctrl_reg->multi_msg_capable),
-        RegFieldVerbElem(4,  6, fmt::format(" multiple msg enable: {}",
+        RegFieldVerbElem(4,  6, std::format(" multiple msg enable: {}",
                                             multi_msg_map[msi_msg_ctrl_reg->multi_msg_ena]),
                                 msi_msg_ctrl_reg->multi_msg_ena),
         RegFieldCompElem(7,  7, " 64-bit address", msi_msg_ctrl_reg->addr_64_bit_capable == 1),
@@ -186,7 +186,7 @@ CompatMSICap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
         RegFieldCompElem(11, 15)
     });
 
-    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] MSI", off),
+    lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] MSI", off),
                                      "Message Control +0x2", std::move(msi_mc_content), &vis[i++]));
 
     // Add other components depending on the type of MSI capability
@@ -205,36 +205,36 @@ CompatMSICap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
         auto laddr_content = vbox({
             hbox({
                 hbox({
-                    text(fmt::format("{:030b}", msg_addr_lower)) |
+                    text(std::format("{:030b}", msg_addr_lower)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Green),
                     separator(),
-                    text(fmt::format("{:02b}", msg_addr_lower & 0x3)) |
+                    text(std::format("{:02b}", msg_addr_lower & 0x3)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Magenta),
                 }) | border,
                 filler()
             }),
-            text(fmt::format(" Full address: {:#x}",
+            text(std::format(" Full address: {:#x}",
                  (uint64_t)msg_addr_upper << 32 | (uint64_t)msg_addr_lower))
         });
 
         auto uaddr_content = vbox({
             hbox({
                 hbox({
-                    text(fmt::format("{:032b}", msg_addr_upper)) |
+                    text(std::format("{:032b}", msg_addr_upper)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Magenta)
                 }) | border,
                 filler()
             }),
-            text(fmt::format(" address: {:#x}", msg_addr_upper))
+            text(std::format(" address: {:#x}", msg_addr_upper))
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] MSI", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] MSI", off),
                                          "Message Address +0x4", std::move(laddr_content),
                                          &vis[i - 2]));
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] MSI", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] MSI", off),
                                          "Message Address Upper +0x8", std::move(uaddr_content),
                                          &vis[i - 1]));
     } else {
@@ -247,20 +247,20 @@ CompatMSICap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
         auto laddr_content = vbox({
             hbox({
                 hbox({
-                    text(fmt::format("{:030b}", msg_addr_lower)) |
+                    text(std::format("{:030b}", msg_addr_lower)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Green),
                     separator(),
-                    text(fmt::format("{:02b}", msg_addr_lower & 0x3)) |
+                    text(std::format("{:02b}", msg_addr_lower & 0x3)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Magenta),
                 }) | border,
                 filler()
             }),
-            text(fmt::format(" Address: {:#x}", msg_addr_lower))
+            text(std::format(" Address: {:#x}", msg_addr_lower))
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] MSI", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] MSI", off),
                                          "Message Address +0x4", std::move(laddr_content),
                                          &vis[i - 1]));
     }
@@ -270,24 +270,24 @@ CompatMSICap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
 
     auto msg_data_off = msi_msg_ctrl_reg->addr_64_bit_capable ? 0xc : 0x8;
     upper.push_back(Container::Horizontal({
-                        RegButtonComp(fmt::format("Extended Message Data +{:#x}", msg_data_off + 0x2),
+                        RegButtonComp(std::format("Extended Message Data +{:#x}", msg_data_off + 0x2),
                                       &vis[i++]),
-                        RegButtonComp(fmt::format("Message Data +{:#x}", msg_data_off),
+                        RegButtonComp(std::format("Message Data +{:#x}", msg_data_off),
                                       &vis[i++])
                     }));
 
     auto msg_data = *reinterpret_cast<const uint16_t *>(dev->cfg_space_.get() + off + msg_data_off);
     auto ext_msg_data = *reinterpret_cast<const uint16_t *>
                         (dev->cfg_space_.get() + off + msg_data_off + 0x2);
-    auto data_content = text(fmt::format("data: {:#x}", msg_data)) | bold;
-    auto ext_data_content = text(fmt::format("extended data: {:#x}", ext_msg_data)) | bold;
+    auto data_content = text(std::format("data: {:#x}", msg_data)) | bold;
+    auto ext_data_content = text(std::format("extended data: {:#x}", ext_msg_data)) | bold;
 
-    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] MSI", off),
-                                     fmt::format("Extended Message Data +{:#x}", msg_data_off + 0x2),
+    lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] MSI", off),
+                                     std::format("Extended Message Data +{:#x}", msg_data_off + 0x2),
                                      std::move(ext_data_content), &vis[i - 2]));
 
-    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] MSI", off),
-                                     fmt::format("Message Data +{:#x}", msg_data_off),
+    lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] MSI", off),
+                                     std::format("Message Data +{:#x}", msg_data_off),
                                      std::move(data_content), &vis[i - 1]));
 
     // mask/pending bits info
@@ -301,17 +301,17 @@ CompatMSICap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
 
         std::ranges::fill_n(std::back_inserter(vis), 2, 0);
         upper.push_back(Container::Horizontal({
-                            RegButtonComp(fmt::format("Mask Bits +{:#x}", mask_bits_off),
+                            RegButtonComp(std::format("Mask Bits +{:#x}", mask_bits_off),
                                           &vis[i++]),
                         }));
         upper.push_back(Container::Horizontal({
-                            RegButtonComp(fmt::format("Pending Bits +{:#x}", pending_bits_off),
+                            RegButtonComp(std::format("Pending Bits +{:#x}", pending_bits_off),
                                           &vis[i++]),
                         }));
 
         auto mask_bits_content = hbox({
             hbox({
-                text(fmt::format("{:32b}", mask_bits)) |
+                text(std::format("{:32b}", mask_bits)) |
                      color(Color::Grey15) |
                      bgcolor(Color::Magenta)
             }) | border,
@@ -320,19 +320,19 @@ CompatMSICap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
 
         auto pending_bits_content = hbox({
             hbox({
-                text(fmt::format("{:32b}", pending_bits)) |
+                text(std::format("{:32b}", pending_bits)) |
                      color(Color::Grey15) |
                      bgcolor(Color::Magenta)
             }) | border,
             filler()
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] MSI", off),
-                                         fmt::format("Mask Bits +{:#x}", mask_bits_off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] MSI", off),
+                                         std::format("Mask Bits +{:#x}", mask_bits_off),
                                          std::move(mask_bits_content), &vis[i - 2]));
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] MSI", off),
-                                         fmt::format("Pending Bits +{:#x}", pending_bits_off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] MSI", off),
+                                         std::format("Pending Bits +{:#x}", pending_bits_off),
                                          std::move(pending_bits_content), &vis[i - 1]));
     }
 
@@ -359,20 +359,20 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                     }));
 
     auto pcie_cap_reg_content = vbox({
-        RegFieldCompElem(0, 3, fmt::format(" Version: {}",
+        RegFieldCompElem(0, 3, std::format(" Version: {}",
                                            pcie_cap->pcie_cap_reg.cap_ver)),
-        RegFieldVerbElem(4, 7, fmt::format(" Device/Port type: '{}'",
+        RegFieldVerbElem(4, 7, std::format(" Device/Port type: '{}'",
                                        dev->type_ == pci::pci_dev_type::TYPE0 ?
                                        PciEDevPortDescType0(pcie_cap->pcie_cap_reg.dev_port_type) :
                                        PciEDevPortDescType1(pcie_cap->pcie_cap_reg.dev_port_type)),
                                 pcie_cap->pcie_cap_reg.dev_port_type),
         RegFieldCompElem(8, 8, " Slot implemented", pcie_cap->pcie_cap_reg.slot_impl == 1),
-        RegFieldCompElem(9, 13, fmt::format(" ITR message number: {}",
+        RegFieldCompElem(9, 13, std::format(" ITR message number: {}",
                                 pcie_cap->pcie_cap_reg.itr_msg_num)),
         RegFieldCompElem(14, 15)
     });
 
-    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+    lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                      "PCIe Capabilities +0x2", std::move(pcie_cap_reg_content),
                                      &vis[i - 1]));
 
@@ -384,32 +384,32 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
     std::array<uint16_t, 8> pyld_sz_map { 128, 256, 512, 1024, 2048, 4096, 0, 0};
 
     auto dev_caps_content = vbox({
-        RegFieldVerbElem(0, 2, fmt::format(" Max payload size: {}",
+        RegFieldVerbElem(0, 2, std::format(" Max payload size: {}",
                                            pyld_sz_map[pcie_cap->dev_cap.max_pyld_size_supported]),
                                 pcie_cap->dev_cap.max_pyld_size_supported),
-        RegFieldCompElem(3, 4, fmt::format(" Phantom functions: MSB num {:02b} | {}",
+        RegFieldCompElem(3, 4, std::format(" Phantom functions: MSB num {:02b} | {}",
                                            pcie_cap->dev_cap.phan_func_supported,
                                            pcie_cap->dev_cap.phan_func_supported)),
         RegFieldCompElem(5, 5, " Ext tag field supported",
                          pcie_cap->dev_cap.ext_tag_field_supported == 1),
-        RegFieldCompElem(6, 8, fmt::format(" EP L0s acceptable latency: {}",
+        RegFieldCompElem(6, 8, std::format(" EP L0s acceptable latency: {}",
                                            EpL0sAcceptLatDesc(pcie_cap->dev_cap.ep_l0s_accept_lat))),
-        RegFieldCompElem(9, 11, fmt::format(" EP L1 acceptable latency: {}",
+        RegFieldCompElem(9, 11, std::format(" EP L1 acceptable latency: {}",
                                             EpL1AcceptLatDesc(pcie_cap->dev_cap.ep_l1_accept_lat))),
         RegFieldCompElem(12, 14),
         RegFieldCompElem(15, 15, " Role-based error reporting",
                          pcie_cap->dev_cap.role_based_err_rep == 1),
         RegFieldCompElem(16, 17),
-        RegFieldCompElem(18, 25, fmt::format(" Captured slot power limit: {:#x}",
+        RegFieldCompElem(18, 25, std::format(" Captured slot power limit: {:#x}",
                                              pcie_cap->dev_cap.cap_slot_pwr_lim_val)),
-        RegFieldVerbElem(26, 27, fmt::format(" Captured slot power scale: {}",
+        RegFieldVerbElem(26, 27, std::format(" Captured slot power scale: {}",
                                         CapSlotPWRScale(pcie_cap->dev_cap.cap_slot_pwr_lim_scale)),
                         pcie_cap->dev_cap.cap_slot_pwr_lim_scale),
         RegFieldCompElem(28, 28, " FLR capable", pcie_cap->dev_cap.flr_cap == 1),
         RegFieldCompElem(29, 31)
     });
 
-    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+    lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                      "Device Capabilities +0x4", std::move(dev_caps_content),
                                      &vis[i - 1]));
 
@@ -430,7 +430,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                          pcie_cap->dev_ctl.unsupported_req_rep_ena == 1),
         RegFieldCompElem(4, 4, " Relaxed ordering",
                          pcie_cap->dev_ctl.relaxed_order_ena == 1),
-        RegFieldCompElem(5, 7, fmt::format(" Max TLP payload size: {} bytes",
+        RegFieldCompElem(5, 7, std::format(" Max TLP payload size: {} bytes",
                                            pyld_sz_map[pcie_cap->dev_ctl.max_pyld_size])),
         RegFieldCompElem(8, 8, " Extended tag field",
                          pcie_cap->dev_ctl.ext_tag_field_ena == 1),
@@ -440,9 +440,9 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                          pcie_cap->dev_ctl.aux_power_pm_ena == 1),
         RegFieldCompElem(11, 11, " No snoop",
                          pcie_cap->dev_ctl.no_snoop_ena == 1),
-        RegFieldCompElem(12, 14, fmt::format(" max READ request size: {} bytes",
+        RegFieldCompElem(12, 14, std::format(" max READ request size: {} bytes",
                                            pyld_sz_map[pcie_cap->dev_ctl.max_read_req_size])),
-        RegFieldCompElem(15, 15, fmt::format("{}",
+        RegFieldCompElem(15, 15, std::format("{}",
                                  (dev->type_ == pci::pci_dev_type::TYPE1 &&
                                   pcie_cap->pcie_cap_reg.dev_port_type == 0b0111) ?
                                  " Bridge configuration retry" :
@@ -453,7 +453,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                          pcie_cap->dev_ctl.brd_conf_retry_init_flr == 1)
     });
 
-    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+    lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                      "Device Control +0x8", std::move(dev_ctrl_content),
                                      &vis[i - 1]));
 
@@ -475,7 +475,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
         RegFieldCompElem(7, 15)
     });
 
-    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+    lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                      "Device Status +0xa", std::move(dev_status_content),
                                      &vis[i - 2]));
 
@@ -491,18 +491,18 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                                                  pcie_cap->link_cap.max_link_speed,
                                                  pcie_cap->link_cap2),
                              pcie_cap->link_cap.max_link_speed),
-            RegFieldVerbElem(4, 9, fmt::format(" Max link width: {}",
+            RegFieldVerbElem(4, 9, std::format(" Max link width: {}",
                                                LinkWidthDesc(pcie_cap->link_cap.max_link_width)),
                              pcie_cap->link_cap.max_link_width),
             RegFieldCompElem(10, 11,
-                             fmt::format(" ASPM support [{}]: L0s[{}] L1[{}]",
+                             std::format(" ASPM support [{}]: L0s[{}] L1[{}]",
                                          pcie_cap->link_cap.aspm_support ? '+' : '-',
                                          (pcie_cap->link_cap.aspm_support & 0x1) ? '+' : '-',
                                          (pcie_cap->link_cap.aspm_support & 0x2) ? '+' : '-')),
-            RegFieldVerbElem(12, 14, fmt::format(" L0s exit latency: {}",
+            RegFieldVerbElem(12, 14, std::format(" L0s exit latency: {}",
                                                 LinkCapL0sExitLat(pcie_cap->link_cap.l0s_exit_lat)),
                              pcie_cap->link_cap.l0s_exit_lat),
-            RegFieldVerbElem(15, 17, fmt::format(" L1 exit latency: {}",
+            RegFieldVerbElem(15, 17, std::format(" L1 exit latency: {}",
                                                 LinkCapL1ExitLat(pcie_cap->link_cap.l1_exit_lat)),
                              pcie_cap->link_cap.l1_exit_lat),
             RegFieldCompElem(18, 18, " Clock PM", pcie_cap->link_cap.clk_pwr_mng == 1),
@@ -514,10 +514,10 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                              pcie_cap->link_cap.link_bw_notify_cap == 1),
             RegFieldCompElem(22, 22, " ASPM opt compliance",
                              pcie_cap->link_cap.aspm_opt_compl == 1),
-            RegFieldCompElem(23, 31, fmt::format(" Port number: {}", pcie_cap->link_cap.port_num))
+            RegFieldCompElem(23, 31, std::format(" Port number: {}", pcie_cap->link_cap.port_num))
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                          "Link Capabilities +0xc", std::move(link_cap_content),
                                          &vis[i - 1]));
     } else {
@@ -536,12 +536,12 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
 
         auto link_ctrl_content = vbox({
             RegFieldCompElem(0, 1,
-                             fmt::format(" ASPM ctrl [{}]: L0s[{}] L1[{}]",
+                             std::format(" ASPM ctrl [{}]: L0s[{}] L1[{}]",
                                          pcie_cap->link_ctl.aspm_ctl ? "+" : "disabled",
                                          (pcie_cap->link_ctl.aspm_ctl & 0x1) ? '+' : '-',
                                          (pcie_cap->link_ctl.aspm_ctl & 0x2) ? '+' : '-')),
             RegFieldCompElem(2, 2),
-            RegFieldCompElem(3, 3, fmt::format(" RCB: {}",
+            RegFieldCompElem(3, 3, std::format(" RCB: {}",
                                    (dev->type_ == pci::pci_dev_type::TYPE1 &&
                                      (pcie_cap->pcie_cap_reg.dev_port_type == 0b0101 ||
                                       pcie_cap->pcie_cap_reg.dev_port_type == 0b0110)) ?
@@ -562,11 +562,11 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
             RegFieldCompElem(11, 11, " Link autonomous BW itr",
                              pcie_cap->link_ctl.link_auto_bw_mng_itr_ena == 1),
             RegFieldCompElem(12, 13),
-            RegFieldCompElem(14, 15, fmt::format(" DRS: {}",
+            RegFieldCompElem(14, 15, std::format(" DRS: {}",
                                      LinkCtlDrsSigCtlDesc(pcie_cap->link_ctl.drs_signl_ctl)))
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                          "Link Control +0x10", std::move(link_ctrl_content),
                                          &vis[i - 1]));
 
@@ -575,7 +575,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                                                  pcie_cap->link_status.curr_link_speed,
                                                  pcie_cap->link_cap2),
                              pcie_cap->link_status.curr_link_speed),
-            RegFieldVerbElem(4, 9, fmt::format(" Negotiated link width: {}",
+            RegFieldVerbElem(4, 9, std::format(" Negotiated link width: {}",
                                                LinkWidthDesc(pcie_cap->link_status.negotiated_link_width)),
                              pcie_cap->link_status.negotiated_link_width),
             RegFieldCompElem(10, 10),
@@ -591,7 +591,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                              pcie_cap->link_status.link_auto_bw_status == 1)
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                          "Link Status +0x12", std::move(link_status_content),
                                          &vis[i - 2]));
     } else {
@@ -622,20 +622,20 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                              pcie_cap->slot_cap.hot_plug_surpr == 1),
             RegFieldCompElem(6, 6, " HP capable",
                              pcie_cap->slot_cap.hot_plug_cap == 1),
-            RegFieldVerbElem(7, 14, fmt::format(" Slot PL value: {}",
+            RegFieldVerbElem(7, 14, std::format(" Slot PL value: {}",
                                     SlotCapPWRLimitDesc(pcie_cap->slot_cap.slot_pwr_lim_val)),
                              pcie_cap->slot_cap.slot_pwr_lim_val),
-            RegFieldCompElem(15, 16, fmt::format(" Slot PL scale: {}",
+            RegFieldCompElem(15, 16, std::format(" Slot PL scale: {}",
                                       CapSlotPWRScale(pcie_cap->slot_cap.slot_pwr_lim_val))),
             RegFieldCompElem(17, 17, " EM interlock present",
                              pcie_cap->slot_cap.em_interlock_pres == 1),
             RegFieldCompElem(18, 18, " No command completed",
                              pcie_cap->slot_cap.no_cmd_cmpl_support == 1),
-            RegFieldCompElem(19, 31, fmt::format(" Physical slot number: {:#x}",
+            RegFieldCompElem(19, 31, std::format(" Physical slot number: {:#x}",
                                                  pcie_cap->slot_cap.phys_slot_num))
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                          "Slot Capabilities +0x14", std::move(slot_cap_content),
                                          &vis[i - 1]));
     } else {
@@ -663,12 +663,12 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                              pcie_cap->slot_status.pres_detect_changed == 1),
             RegFieldCompElem(4, 4, " Cmd completed",
                              pcie_cap->slot_status.cmd_cmpl == 1),
-            RegFieldCompElem(5, 5, fmt::format(" MRL sensor state: {}",
+            RegFieldCompElem(5, 5, std::format(" MRL sensor state: {}",
                              pcie_cap->slot_status.mrl_sens_state == 0x0 ? "closed" : "open")),
-            RegFieldCompElem(6, 6, fmt::format(" Presence detect state: {}",
+            RegFieldCompElem(6, 6, std::format(" Presence detect state: {}",
                              pcie_cap->slot_status.pres_detect_state == 0x0 ?
                              "slot empty" : "adapter present")),
-            RegFieldCompElem(7, 7, fmt::format(" EM interlock status: {}",
+            RegFieldCompElem(7, 7, std::format(" EM interlock status: {}",
                              pcie_cap->slot_status.em_interlock_status == 0x0 ?
                              "disengaged" : "engaged")),
             RegFieldCompElem(8, 8, " Data link layer state changed",
@@ -676,7 +676,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
             RegFieldCompElem(9, 15)
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                          "Slot Status +0x1a", std::move(slot_stat_content),
                                          &vis[i - 2]));
 
@@ -693,11 +693,11 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                              pcie_cap->slot_ctl.cmd_cmpl_itr_ena == 1),
             RegFieldCompElem(5, 5, " HP interrupt enable",
                              pcie_cap->slot_ctl.hot_plug_itr_ena == 1),
-            RegFieldCompElem(6, 7, fmt::format(" Attention indicator ctrl: {}",
+            RegFieldCompElem(6, 7, std::format(" Attention indicator ctrl: {}",
                              SlotCtlIndCtrlDesc(pcie_cap->slot_ctl.attn_ind_ctl))),
-            RegFieldCompElem(8, 9, fmt::format(" Power indicator ctrl: {}",
+            RegFieldCompElem(8, 9, std::format(" Power indicator ctrl: {}",
                              SlotCtlIndCtrlDesc(pcie_cap->slot_ctl.pwr_ind_ctl))),
-            RegFieldCompElem(10, 10, fmt::format(" Power controller ctrl: {}",
+            RegFieldCompElem(10, 10, std::format(" Power controller ctrl: {}",
                              pcie_cap->slot_ctl.pwr_ctl_ctl == 0x0 ? "ON" : "OFF")),
             RegFieldCompElem(11, 11, " EM interlock ctrl"),
             RegFieldCompElem(12, 12, " Data link layer state changed enable",
@@ -707,7 +707,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
             RegFieldCompElem(14, 15)
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                          "Slot Control +0x18", std::move(slot_ctrl_content),
                                          &vis[i - 1]));
 
@@ -731,7 +731,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
             RegFieldCompElem(1, 15)
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                          "Root Capabilities +0x1e", std::move(root_cap_content),
                                          &vis[i - 2]));
 
@@ -749,7 +749,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
             RegFieldCompElem(5, 15)
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                          "Root Control +0x1c", std::move(root_ctrl_content),
                                          &vis[i - 1]));
     } else {
@@ -767,7 +767,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                         }));
 
         auto root_status_content = vbox({
-            RegFieldVerbElem(0, 15, fmt::format(" PME requester ID: {:#x}",
+            RegFieldVerbElem(0, 15, std::format(" PME requester ID: {:#x}",
                                                 pcie_cap->root_status.pme_req_id),
                              pcie_cap->root_status.pme_req_id),
             RegFieldCompElem(16, 16, " PME status", pcie_cap->root_status.pme_status),
@@ -775,7 +775,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
             RegFieldCompElem(18, 31)
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                          "Root Status +0x20", std::move(root_status_content),
                                          &vis[i - 1]));
     } else {
@@ -792,7 +792,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                         }));
 
         auto dev_cap2_content = vbox({
-            RegFieldCompElem(0, 3, fmt::format(" Cmpl timeout ranges: {}",
+            RegFieldCompElem(0, 3, std::format(" Cmpl timeout ranges: {}",
                              CmplTimeoutRangesDesc(pcie_cap->dev_cap2))),
             RegFieldCompElem(4, 4, " Cmpl timeout disable",
                              pcie_cap->dev_cap2.cmpl_timeout_dis_support == 1),
@@ -810,16 +810,16 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                              pcie_cap->dev_cap2.no_ro_ena_prpr_passing == 1),
             RegFieldCompElem(11, 11, " LTR",
                              pcie_cap->dev_cap2.ltr_support == 1),
-            RegFieldCompElem(12, 13, fmt::format(" TPH completer: TPH[{}] eTPH[{}]",
+            RegFieldCompElem(12, 13, std::format(" TPH completer: TPH[{}] eTPH[{}]",
                              (pcie_cap->dev_cap2.tph_cmpl_support & 0x1) ? '+' : '-',
                              (pcie_cap->dev_cap2.tph_cmpl_support & 0x2) ? '+' : '-')),
-            RegFieldCompElem(14, 15, fmt::format(" LN system CLS: {}",
+            RegFieldCompElem(14, 15, std::format(" LN system CLS: {}",
                              DevCap2LNSysCLSDesc(pcie_cap->dev_cap2.ln_sys_cls))),
             RegFieldCompElem(16, 16, " 10-bit tag completer",
                              pcie_cap->dev_cap2.tag_10bit_cmpl_support == 1),
             RegFieldCompElem(17, 17, " 10-bit tag requester",
                              pcie_cap->dev_cap2.tag_10bit_req_support == 1),
-            RegFieldCompElem(18, 19, fmt::format(" OBFF[{}]: msg signal [{}] WAKE# signal [{}]",
+            RegFieldCompElem(18, 19, std::format(" OBFF[{}]: msg signal [{}] WAKE# signal [{}]",
                              (pcie_cap->dev_cap2.obff_supported == 0x0) ? '-' : '+',
                              (pcie_cap->dev_cap2.obff_supported & 0x1) ? '+' : '-',
                              (pcie_cap->dev_cap2.obff_supported & 0x2) ? '+' : '-')),
@@ -827,10 +827,10 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                              pcie_cap->dev_cap2.ext_fmt_field_support == 1),
             RegFieldCompElem(21, 21, " end-end TLP prefix",
                              pcie_cap->dev_cap2.end_end_tlp_pref_support == 1),
-            RegFieldCompElem(22, 23, fmt::format(" max end-end TLP prefixes: {}",
+            RegFieldCompElem(22, 23, std::format(" max end-end TLP prefixes: {}",
                              (pcie_cap->dev_cap2.max_end_end_tlp_pref == 0) ?
                              0x4 : pcie_cap->dev_cap2.max_end_end_tlp_pref)),
-            RegFieldCompElem(24, 25, fmt::format(" Emerg power reduction state: {:#x}",
+            RegFieldCompElem(24, 25, std::format(" Emerg power reduction state: {:#x}",
                               pcie_cap->dev_cap2.emerg_pwr_reduct_support)),
             RegFieldCompElem(26, 26, " Emerg power reduction init required",
                              pcie_cap->dev_cap2.emerg_pwr_reduct_init_req == 1),
@@ -839,7 +839,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                              pcie_cap->dev_cap2.frs_support == 1),
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                          "Device Capabilities 2 +0x24", std::move(dev_cap2_content),
                                          &vis[i - 1]));
     } else {
@@ -857,7 +857,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                         }));
 
         auto dev_ctrl2_content = vbox({
-            RegFieldCompElem(0, 3, fmt::format(" Cmpl timeout value: {}",
+            RegFieldCompElem(0, 3, std::format(" Cmpl timeout value: {}",
                              CmplTimeoutValueDesc(pcie_cap->dev_ctl2.cmpl_timeout_val))),
             RegFieldCompElem(4, 4, " Cmpl timeout disable",
                              pcie_cap->dev_ctl2.cmpl_timeout_dis == 1),
@@ -877,14 +877,14 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                              pcie_cap->dev_ctl2.emerg_pwr_reduct_req == 1),
             RegFieldCompElem(12, 12, " 10-bit tag requester enable",
                              pcie_cap->dev_ctl2.tag_10bit_req_ena == 1),
-            RegFieldCompElem(13, 14, fmt::format(" OBFF enable: {}",
+            RegFieldCompElem(13, 14, std::format(" OBFF enable: {}",
                              DevCtl2ObffDesc(pcie_cap->dev_ctl2.obff_ena))),
-            RegFieldCompElem(15, 15, fmt::format(" end-end TLP prefix blocking: {}",
+            RegFieldCompElem(15, 15, std::format(" end-end TLP prefix blocking: {}",
                              (pcie_cap->dev_ctl2.end_end_tlp_pref_block == 1) ?
                              "fwd blocked" : "fwd enabled"))
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                          "Device Control 2 +0x28", std::move(dev_ctrl2_content),
                                          &vis[i - 1]));
     } else {
@@ -903,14 +903,14 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
 
         auto link_cap2_content = vbox({
             RegFieldCompElem(0, 0),
-            RegFieldVerbElem(1, 7, fmt::format(" Supported link speeds: {}",
+            RegFieldVerbElem(1, 7, std::format(" Supported link speeds: {}",
                              SuppLinkSpeedDesc(pcie_cap->link_cap2.supported_speed_vec)),
                              pcie_cap->link_cap2.supported_speed_vec),
             RegFieldCompElem(8, 8, " Crosslink", pcie_cap->link_cap2.crosslink_support == 1),
-            RegFieldVerbElem(9, 15, fmt::format(" Lower SKP OS gen speeds: {}",
+            RegFieldVerbElem(9, 15, std::format(" Lower SKP OS gen speeds: {}",
                              SuppLinkSpeedDesc(pcie_cap->link_cap2.low_skp_os_gen_supp_speed_vec)),
                              pcie_cap->link_cap2.low_skp_os_gen_supp_speed_vec),
-            RegFieldVerbElem(16, 22, fmt::format(" Lower SKP OS reception speeds: {}",
+            RegFieldVerbElem(16, 22, std::format(" Lower SKP OS reception speeds: {}",
                              SuppLinkSpeedDesc(pcie_cap->link_cap2.low_skp_os_rec_supp_speed_vec)),
                              pcie_cap->link_cap2.low_skp_os_rec_supp_speed_vec),
             RegFieldCompElem(23, 23, " Retimer presence detect",
@@ -922,7 +922,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                              pcie_cap->link_cap2.drs_support == 1)
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                          "Link Capabilities 2 +0x2c", std::move(link_cap2_content),
                                          &vis[i - 1]));
     } else {
@@ -940,7 +940,7 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                         }));
 
         auto link_stat2_content = vbox({
-            RegFieldCompElem(0, 0, fmt::format(" Current de-emphasis level: {}",
+            RegFieldCompElem(0, 0, std::format(" Current de-emphasis level: {}",
                              pcie_cap->link_status2.curr_de_emph_lvl == 0x0 ?
                              "-6 dB" : "-3.5 dB")),
             RegFieldCompElem(1, 1, " Equalization 8GT/s complete",
@@ -957,16 +957,16 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                              pcie_cap->link_status2.retmr_pres_detect == 1),
             RegFieldCompElem(7, 7, " 2 Retimers presence detected",
                              pcie_cap->link_status2.two_retmr_pres_detect == 1),
-            RegFieldCompElem(8, 9, fmt::format(" Crosslink resolution: {}",
+            RegFieldCompElem(8, 9, std::format(" Crosslink resolution: {}",
                              CrosslinkResDesc(pcie_cap->link_status2.crosslink_resolution))),
             RegFieldCompElem(10, 11),
-            RegFieldCompElem(12, 14, fmt::format(" Downstream comp presence: {}",
+            RegFieldCompElem(12, 14, std::format(" Downstream comp presence: {}",
                               DownstreamCompPresDesc(pcie_cap->link_status2.downstream_comp_pres))),
             RegFieldCompElem(15, 15, " DRS msg received",
                              pcie_cap->link_status2.drs_msg_recv == 1),
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                          "Link Status 2 +0x32", std::move(link_stat2_content),
                                          &vis[i - 2]));
 
@@ -977,21 +977,21 @@ CompatPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
             RegFieldCompElem(4, 4, " Enter Compliance", pcie_cap->link_ctl2.enter_compliance == 1),
             RegFieldCompElem(5, 5, " HW autonomous speed disable",
                              pcie_cap->link_ctl2.hw_auto_speed_dis == 1),
-            RegFieldCompElem(6, 6, fmt::format(" Selectable de-emphasis level: {}",
+            RegFieldCompElem(6, 6, std::format(" Selectable de-emphasis level: {}",
                              pcie_cap->link_ctl2.select_de_emph == 0x0 ?
                              "-6 dB" : "-3.5 dB")),
-            RegFieldCompElem(7, 9, fmt::format(" Transmit margin: {}",
+            RegFieldCompElem(7, 9, std::format(" Transmit margin: {}",
                              pcie_cap->link_ctl2.trans_margin == 0x0 ?
                              "normal operation" : "other(tbd)")),
             RegFieldCompElem(10, 10, " Enter modified compliance",
                              pcie_cap->link_ctl2.enter_mod_compliance == 1),
             RegFieldCompElem(11, 11, " Compliance sos",
                              pcie_cap->link_ctl2.compliance_sos == 1),
-            RegFieldCompElem(12, 15, fmt::format(" Compliance preset/de-emph: {:#x}",
+            RegFieldCompElem(12, 15, std::format(" Compliance preset/de-emph: {:#x}",
                              pcie_cap->link_ctl2.compliance_preset_de_emph))
         });
 
-        lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] PCI Express", off),
+        lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] PCI Express", off),
                                          "Link Control 2 +0x30", std::move(link_ctrl2_content),
                                          &vis[i - 1]));
     } else {
@@ -1034,13 +1034,13 @@ CompatMSIxCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                     }));
 
     auto msix_mc_content = vbox({
-        RegFieldVerbElem(0, 10, fmt::format(" Table size: {:#04x}", msix_cap->msg_ctrl.table_size + 1),
+        RegFieldVerbElem(0, 10, std::format(" Table size: {:#04x}", msix_cap->msg_ctrl.table_size + 1),
                          msix_cap->msg_ctrl.table_size),
         RegFieldCompElem(11, 13),
         RegFieldCompElem(14, 14, " Function mask", msix_cap->msg_ctrl.func_mask),
         RegFieldCompElem(15, 15, " MSI-X enable", msix_cap->msg_ctrl.msix_ena)
     });
-    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] MSI-X", off),
+    lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] MSI-X", off),
                                      "Message Control +0x2", std::move(msix_mc_content), &vis[i - 1]));
 
     upper.push_back(Container::Horizontal({
@@ -1048,11 +1048,11 @@ CompatMSIxCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                     }));
 
     auto msix_tbl_off_bir_content = vbox({
-        RegFieldCompElem(0, 2,  fmt::format("    BAR: {:#x}", msix_cap->tbl_off_id.tbl_bar_entry)),
-        RegFieldCompElem(3, 31, fmt::format(" Offset: {:#08x}", msix_cap->tbl_off_id.tbl_off << 3)),
+        RegFieldCompElem(0, 2,  std::format("    BAR: {:#x}", msix_cap->tbl_off_id.tbl_bar_entry)),
+        RegFieldCompElem(3, 31, std::format(" Offset: {:#08x}", msix_cap->tbl_off_id.tbl_off << 3)),
     });
 
-    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] MSI-X", off),
+    lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] MSI-X", off),
                                      "Message Table Off/BIR +0x4",
                                      std::move(msix_tbl_off_bir_content), &vis[i - 1]));
 
@@ -1061,11 +1061,11 @@ CompatMSIxCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                     }));
 
     auto msix_pba_off_bir_content = vbox({
-        RegFieldCompElem(0, 2,  fmt::format("    BAR: {:#x}", msix_cap->pba_off_id.pba_bar_entry)),
-        RegFieldCompElem(3, 31, fmt::format(" Offset: {:#08x}", msix_cap->pba_off_id.pba_off << 3)),
+        RegFieldCompElem(0, 2,  std::format("    BAR: {:#x}", msix_cap->pba_off_id.pba_bar_entry)),
+        RegFieldCompElem(3, 31, std::format(" Offset: {:#08x}", msix_cap->pba_off_id.pba_off << 3)),
     });
 
-    lower.push_back(CreateCapRegInfo(fmt::format("[compat][{:#02x}] MSI-X", off),
+    lower.push_back(CreateCapRegInfo(std::format("[compat][{:#02x}] MSI-X", off),
                                      "PBA Off/BIR +0x8",
                                      std::move(msix_pba_off_bir_content), &vis[i - 1]));
 

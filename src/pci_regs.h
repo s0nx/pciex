@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 // Type 0 device configuration header register offsets
 enum class Type0Cfg

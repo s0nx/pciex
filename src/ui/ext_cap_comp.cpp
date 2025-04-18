@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2024-2025 Petr Vyazovik <xen@f-m.fm>
 
 #include "ext_cap_comp.h"
 #include "log.h"
@@ -7,8 +7,7 @@
 
 #include <cassert>
 #include <bitset>
-
-#include <fmt/format.h>
+#include <format>
 
 extern Logger logger;
 
@@ -51,12 +50,12 @@ ExtSecondaryPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
         RegFieldCompElem(0, 0, " Perform EQ", sec_pcie_cap->link_ctl3.perform_eq),
         RegFieldCompElem(1, 1, " Link EQ req intr enable", sec_pcie_cap->link_ctl3.link_eq_req_itr_ena),
         RegFieldCompElem(2, 8),
-        RegFieldVerbElem(9, 15, fmt::format(" Enable lower SKP OS gen vector: {}",
+        RegFieldVerbElem(9, 15, std::format(" Enable lower SKP OS gen vector: {}",
                                             EnableLowerSKPOSGenVecDesc(sec_pcie_cap->link_ctl3.lower_skp_os_gen_vec_ena)),
                          sec_pcie_cap->link_ctl3.lower_skp_os_gen_vec_ena),
         RegFieldCompElem(16, 31)
     });
-    lower.push_back(CreateCapRegInfo(fmt::format("[extended][{:#02x}] Secondary PCIe", off),
+    lower.push_back(CreateCapRegInfo(std::format("[extended][{:#02x}] Secondary PCIe", off),
                                      "Link Control 3 +0x4",
                                      std::move(link_ctl3_content), &vis[i - 1]));
 
@@ -65,11 +64,11 @@ ExtSecondaryPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                     }));
 
     auto lane_err_status_content = vbox({
-        RegFieldVerbElem(0, 31, fmt::format(" Lane(s) with error detected: {:#04x}",
+        RegFieldVerbElem(0, 31, std::format(" Lane(s) with error detected: {:#04x}",
                                             sec_pcie_cap->lane_err_stat.lane_err_status),
                          sec_pcie_cap->lane_err_stat.lane_err_status),
     });
-    lower.push_back(CreateCapRegInfo(fmt::format("[extended][{:#02x}] Secondary PCIe", off),
+    lower.push_back(CreateCapRegInfo(std::format("[extended][{:#02x}] Secondary PCIe", off),
                                      "Lane Error Status +0x8",
                                      std::move(lane_err_status_content), &vis[i - 1]));
 
@@ -77,7 +76,7 @@ ExtSecondaryPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
     if (pcie_cap->link_cap2.supported_speed_vec & 0x4) {
         upper.push_back(
                 Container::Horizontal({
-                    RegButtonComp(fmt::format("Lane Equalization Control [{} lane(s)] +0xc",
+                    RegButtonComp(std::format("Lane Equalization Control [{} lane(s)] +0xc",
                                   max_link_width), &vis[i++]),
         }));
 
@@ -86,31 +85,31 @@ ExtSecondaryPCIECap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                 (dev->cfg_space_.get() + off + cur_link * sizeof(RegLaneEqCtl));
             auto lane_eq_ctl_content = vbox({
                 RegFieldVerbElem(0, 3,
-                    fmt::format(" Downstream port 8GT/s transmitter preset: {}",
+                    std::format(" Downstream port 8GT/s transmitter preset: {}",
                                 TransPresHint8gtsDesc(lane_eq_ctl_reg->ds_port_8gts_trans_pres)),
                                 lane_eq_ctl_reg->ds_port_8gts_trans_pres
                 ),
                 RegFieldVerbElem(4, 6,
-                    fmt::format(" Downstream port 8GT/s receiver preset: {}",
+                    std::format(" Downstream port 8GT/s receiver preset: {}",
                                 RecvPresHint8gtsDesc(lane_eq_ctl_reg->ds_port_8gts_recv_pres_h)),
                                 lane_eq_ctl_reg->ds_port_8gts_recv_pres_h
                 ),
                 RegFieldCompElem(7, 7),
                 RegFieldVerbElem(8, 11,
-                    fmt::format(" Upstream port 8GT/s transmitter preset: {}",
+                    std::format(" Upstream port 8GT/s transmitter preset: {}",
                                 TransPresHint8gtsDesc(lane_eq_ctl_reg->us_port_8gts_trans_pres)),
                                 lane_eq_ctl_reg->us_port_8gts_trans_pres
                 ),
                 RegFieldVerbElem(4, 6,
-                    fmt::format(" Upstream port 8GT/s receiver preset: {}",
+                    std::format(" Upstream port 8GT/s receiver preset: {}",
                                 RecvPresHint8gtsDesc(lane_eq_ctl_reg->us_port_8gts_recv_pres_h)),
                                 lane_eq_ctl_reg->us_port_8gts_recv_pres_h
                 ),
                 RegFieldCompElem(15, 15),
             });
             lower.push_back(
-                    CreateCapRegInfo(fmt::format("[extended][{:#02x}] Secondary PCIe", off),
-                                     fmt::format("Lane #{} Equalization Control +{:#01x}",
+                    CreateCapRegInfo(std::format("[extended][{:#02x}] Secondary PCIe", off),
+                                     std::format("Lane #{} Equalization Control +{:#01x}",
                                                  cur_link, (0xc + cur_link * 0x2)),
                                      std::move(lane_eq_ctl_content), &vis[i - 1]));
         }
@@ -142,7 +141,7 @@ ExtDataLinkFeatureCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
 
     auto dlink_feature_caps_content = vbox({
         RegFieldVerbElem(0, 22,
-                         fmt::format(" Local data link feature(s): Local Scaled Flow Ctl[{}]",
+                         std::format(" Local data link feature(s): Local Scaled Flow Ctl[{}]",
                                 local_dlink_feat_map[0] ? '+' : '-'),
                          dlink_feature_cap->dlink_feat_cap.local_data_link_feat_supp),
         RegFieldCompElem(23, 30),
@@ -150,7 +149,7 @@ ExtDataLinkFeatureCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                          dlink_feature_cap->dlink_feat_cap.data_link_feat_xchg_ena == 1)
     });
     lower.push_back(
-            CreateCapRegInfo(fmt::format(
+            CreateCapRegInfo(std::format(
                                 "[extended][{:#02x}] Data Link Feature", off),
                              "Data Link Feature Capabilities +0x4",
                              std::move(dlink_feature_caps_content), &vis[i - 1]));
@@ -163,7 +162,7 @@ ExtDataLinkFeatureCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
 
     auto dlink_feature_stat_content = vbox({
         RegFieldVerbElem(0, 22,
-                         fmt::format(" Remote data link feature(s): Remote Scaled Flow Ctl[{}]",
+                         std::format(" Remote data link feature(s): Remote Scaled Flow Ctl[{}]",
                                 rem_dlink_feat_map[0] ? '+' : '-'),
                          dlink_feature_cap->dlink_feat_stat.rem_data_link_feat_supp),
         RegFieldCompElem(23, 30),
@@ -171,7 +170,7 @@ ExtDataLinkFeatureCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
                          dlink_feature_cap->dlink_feat_stat.rem_data_link_feat_supp_valid == 1)
     });
     lower.push_back(
-            CreateCapRegInfo(fmt::format(
+            CreateCapRegInfo(std::format(
                                 "[extended][{:#02x}] Data Link Feature", off),
                              "Data Link Feature Status +0x8",
                              std::move(dlink_feature_stat_content), &vis[i - 1]));
@@ -201,11 +200,11 @@ ExtARICap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
         RegFieldCompElem(0, 0, " MFVC function groups capability", ari_cap->ari_cap.mfvc_func_grp_cap == 1),
         RegFieldCompElem(1, 1, " ACS function groups capability", ari_cap->ari_cap.acs_func_grp_cap == 1),
         RegFieldCompElem(2, 7),
-        RegFieldCompElem(8, 15, fmt::format(" Next function: {:#0x}",
+        RegFieldCompElem(8, 15, std::format(" Next function: {:#0x}",
                                             ari_cap->ari_cap.next_func_num))
     });
     lower.push_back(
-            CreateCapRegInfo(fmt::format("[extended][{:#02x}] ARI", off),
+            CreateCapRegInfo(std::format("[extended][{:#02x}] ARI", off),
                              "ARI Capabilities +0x4",
                              std::move(ari_cap_content), &vis[i - 1]));
 
@@ -216,12 +215,12 @@ ExtARICap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
         RegFieldCompElem(0, 0, " MFVC function groups enable", ari_cap->ari_ctl.mfvc_func_grps_ena == 1),
         RegFieldCompElem(1, 1, " ACS function groups enable", ari_cap->ari_ctl.acs_func_grps_ena == 1),
         RegFieldCompElem(2, 3),
-        RegFieldCompElem(4, 6, fmt::format(" Function group: {:#01x}",
+        RegFieldCompElem(4, 6, std::format(" Function group: {:#01x}",
                                             ari_cap->ari_ctl.func_grp)),
         RegFieldCompElem(7, 15),
     });
     lower.push_back(
-            CreateCapRegInfo(fmt::format("[extended][{:#02x}] ARI", off),
+            CreateCapRegInfo(std::format("[extended][{:#02x}] ARI", off),
                              "ARI Control +0x6",
                              std::move(ari_ctl_content), &vis[i - 1]));
 
@@ -251,12 +250,12 @@ ExtPASIDCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
         RegFieldCompElem(1, 1, " Execute permission supported", pasid_cap->pasid_cap.exec_perm_supp == 1),
         RegFieldCompElem(2, 2, " Privileged mode supported", pasid_cap->pasid_cap.privileged_mode_supp == 1),
         RegFieldCompElem(3, 7),
-        RegFieldCompElem(8, 12, fmt::format(" Max PASID width: {:#01x}",
+        RegFieldCompElem(8, 12, std::format(" Max PASID width: {:#01x}",
                                             pasid_cap->pasid_cap.max_pasid_width)),
         RegFieldCompElem(13, 15)
     });
     lower.push_back(
-            CreateCapRegInfo(fmt::format("[extended][{:#02x}] PASID", off),
+            CreateCapRegInfo(std::format("[extended][{:#02x}] PASID", off),
                              "PASID Capability +0x4",
                              std::move(pasid_cap_content), &vis[i - 1]));
 
@@ -270,7 +269,7 @@ ExtPASIDCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
         RegFieldCompElem(3, 15)
     });
     lower.push_back(
-            CreateCapRegInfo(fmt::format("[extended][{:#02x}] PASID", off),
+            CreateCapRegInfo(std::format("[extended][{:#02x}] PASID", off),
                              "PASID Control +0x6",
                              std::move(pasid_ctl_content), &vis[i - 1]));
 

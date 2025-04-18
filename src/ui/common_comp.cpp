@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2024-2025 Petr Vyazovik <xen@f-m.fm>
 
+#include <format>
 #include <variant>
-#include <fmt/format.h>
 
 #include "common_comp.h"
 
@@ -173,7 +173,7 @@ Element
 RegFieldCompElem(const uint8_t fb, const uint8_t lb, std::string desc,
                  bool should_highlight)
 {
-    auto field_pos_desc = text(fmt::format("[{:>2} : {:<2}]", fb, lb));
+    auto field_pos_desc = text(std::format("[{:>2} : {:<2}]", fb, lb));
 
     if (should_highlight)
         field_pos_desc |= bgcolor(Color::Green) |
@@ -198,18 +198,18 @@ Element
 RegFieldVerbElem(const uint8_t fb, const uint8_t lb, std::string desc,
                  uint16_t val)
 {
-    auto field_pos_desc = text(fmt::format("[{:>2} : {:<2}]", fb, lb));
+    auto field_pos_desc = text(std::format("[{:>2} : {:<2}]", fb, lb));
 
     auto field_line = hbox({
         std::move(field_pos_desc),
         separator(),
         separatorEmpty(),
-        text(fmt::format("{:#08b}", val)) | bold |
+        text(std::format("{:#08b}", val)) | bold |
              bgcolor(Color::Blue) | color(Color::Grey15),
         separatorEmpty(),
         ftxui::text("|"),
         separatorEmpty(),
-        text(fmt::format("{:#02x}", val)) | bold |
+        text(std::format("{:#02x}", val)) | bold |
              bgcolor(Color::Green) | color(Color::Grey15),
     });
 
@@ -248,9 +248,9 @@ static std::string RegTypeLabel(const compat_reg_type_t reg_type)
     std::visit([&] (auto &&reg) {
         using T = std::decay_t<decltype(reg)>;
         if constexpr (std::is_same_v<T, Type0Cfg>)
-            reg_label = fmt::format("{} ({:#02x})", Type0RegName(reg), e_to_type(reg));
+            reg_label = std::format("{} ({:#02x})", Type0RegName(reg), e_to_type(reg));
         else
-            reg_label = fmt::format("{} ({:#02x})", Type1RegName(reg), e_to_type(reg));
+            reg_label = std::format("{} ({:#02x})", Type1RegName(reg), e_to_type(reg));
     }, reg_type);
     return reg_label;
 }
@@ -278,7 +278,7 @@ GetHexDumpElem(std::string desc, const uint8_t *buf, const size_t len,
         std::vector<char> text_buf(bytes_per_line);
 
         auto line_complete = [&] {
-            fmt::format_to(std::back_inserter(line_buf), " | ");
+            std::format_to(std::back_inserter(line_buf), " | ");
             auto text_dump = text(std::string(text_buf.begin(), text_buf.end())) |
                              bgcolor(Color::Grey15) | color(Color::Green);
             auto bytes = text(std::string(line_buf.begin(), line_buf.end()));
@@ -297,11 +297,11 @@ GetHexDumpElem(std::string desc, const uint8_t *buf, const size_t len,
                 if (i != 0)
                     line_complete();
 
-                fmt::format_to(std::back_inserter(line_buf), " {:04x} ", i);
+                std::format_to(std::back_inserter(line_buf), " {:04x} ", i);
             }
 
-            fmt::format_to(std::back_inserter(line_buf), " {:02x}", buf[i]);
-            fmt::format_to(std::back_inserter(text_buf), "{:c}",
+            std::format_to(std::back_inserter(line_buf), " {:02x}", buf[i]);
+            std::format_to(std::back_inserter(text_buf), "{:c}",
                            std::isprint(buf[i]) ? buf[i] : '.');
         }
 
@@ -319,7 +319,7 @@ static Component
 CreateRegInfoCompat(const compat_reg_type_t reg_type, Element content,
                     const uint8_t *on_click)
 {
-    auto title = text(fmt::format("Compat Cfg Space Hdr -> {}", RegTypeLabel(reg_type))) |
+    auto title = text(std::format("Compat Cfg Space Hdr -> {}", RegTypeLabel(reg_type))) |
                              inverted | align_right | bold;
     auto info_window = window(std::move(title), std::move(content));
     return GetCompMaybe(std::move(info_window), on_click);
@@ -328,7 +328,7 @@ CreateRegInfoCompat(const compat_reg_type_t reg_type, Element content,
 static Component
 RegInfoVIDComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
-    auto content = text(fmt::format("[{:02x}] -> {}", dev->get_vendor_id(),
+    auto content = text(std::format("[{:02x}] -> {}", dev->get_vendor_id(),
                                         dev->ids_names_[pci::VENDOR].empty() ?
                                         "( empty )" : dev->ids_names_[pci::VENDOR]));
     return CreateRegInfoCompat(Type0Cfg::vid, std::move(content), on_click);
@@ -337,7 +337,7 @@ RegInfoVIDComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 static Component
 RegInfoDevIDComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
-    auto content = text(fmt::format("[{:02x}] -> {}", dev->get_device_id(),
+    auto content = text(std::format("[{:02x}] -> {}", dev->get_device_id(),
                                         dev->ids_names_[pci::DEVICE].empty() ?
                                         "( empty )" : dev->ids_names_[pci::DEVICE]));
     return CreateRegInfoCompat(Type0Cfg::dev_id, std::move(content), on_click);
@@ -392,7 +392,7 @@ RegInfoStatusComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 static Component
 RegInfoRevComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
-    auto content = text(fmt::format("{:02x}", dev->get_rev_id()));
+    auto content = text(std::format("{:02x}", dev->get_rev_id()));
     return CreateRegInfoCompat(Type0Cfg::revision, std::move(content), on_click);
 }
 
@@ -410,19 +410,19 @@ RegInfoCCComp(const pci::PciDevBase *dev, const uint8_t *on_click)
     auto content = vbox({
         hbox({
             hbox({
-                text(fmt::format("{:02x}", reg->base_class_code)) | bold,
+                text(std::format("{:02x}", reg->base_class_code)) | bold,
                 separatorLight(),
-                text(fmt::format("{:02x}", reg->sub_class_code)) | bold,
+                text(std::format("{:02x}", reg->sub_class_code)) | bold,
                 separatorLight(),
-                text(fmt::format("{:02x}", reg->prog_iface)) | bold,
+                text(std::format("{:02x}", reg->prog_iface)) | bold,
             }) | borderStyled(ROUNDED, Color::Blue),
             filler()
         }),
         separatorEmpty(),
         vbox({
-            text(fmt::format("     class: {:02x} -> {}", reg->base_class_code, cname)),
-            text(fmt::format("  subclass: {:02x} -> {}", reg->sub_class_code, sub_cname)),
-            text(fmt::format("prog-iface: {:02x} -> {}", reg->prog_iface, prog_iface))
+            text(std::format("     class: {:02x} -> {}", reg->base_class_code, cname)),
+            text(std::format("  subclass: {:02x} -> {}", reg->sub_class_code, sub_cname)),
+            text(std::format("prog-iface: {:02x} -> {}", reg->prog_iface, prog_iface))
         })
     });
 
@@ -432,7 +432,7 @@ RegInfoCCComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 static Component
 RegInfoClSizeComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
-    auto content = text(fmt::format("Cache Line size: {} bytes",
+    auto content = text(std::format("Cache Line size: {} bytes",
                                dev->get_cache_line_size() * 4));
     return CreateRegInfoCompat(Type0Cfg::cache_line_size, std::move(content), on_click);
 }
@@ -440,7 +440,7 @@ RegInfoClSizeComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 static Component
 RegInfoLatTmrComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
-    auto content = text(fmt::format("Latency Tmr: {:02x}", dev->get_lat_timer()));
+    auto content = text(std::format("Latency Tmr: {:02x}", dev->get_lat_timer()));
     return CreateRegInfoCompat(Type0Cfg::latency_timer, std::move(content), on_click);
 }
 
@@ -449,7 +449,7 @@ RegInfoHdrTypeComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
     auto hdr_type = dev->get_header_type();
     auto reg = reinterpret_cast<const RegHdrType *>(&hdr_type);
-    auto desc = fmt::format(" header layout: {}",
+    auto desc = std::format(" header layout: {}",
                             reg->hdr_layout ? "Type 1" : "Type 0");
 
     auto content = vbox({
@@ -466,7 +466,7 @@ RegInfoBISTComp(const pci::PciDevBase *dev, const uint8_t *on_click)
     auto reg = reinterpret_cast<const RegBIST *>(&bist);
 
     auto content = vbox({
-        RegFieldCompElem(0, 3, fmt::format(" completion code: {}", reg->cpl_code)),
+        RegFieldCompElem(0, 3, std::format(" completion code: {}", reg->cpl_code)),
         RegFieldCompElem(4, 5),
         RegFieldCompElem(6, 6, " start BIST", reg->start_bist == 1),
         RegFieldCompElem(7, 7, " BIST capable", reg->bist_cap == 1)
@@ -491,7 +491,7 @@ GetBarElem(UIBarElemType type, uint32_t bar)
     if (type == UIBarElemType::Empty) {
         reg_box = hbox({
             hbox({
-                text(fmt::format("{:032b}", bar)) |
+                text(std::format("{:032b}", bar)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Green),
             }) | border,
@@ -503,7 +503,7 @@ GetBarElem(UIBarElemType type, uint32_t bar)
         // double hbox is needed to align element
         reg_box = hbox({
             hbox({
-                text(fmt::format("{:030b}", reg->addr)) |
+                text(std::format("{:030b}", reg->addr)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Green),
                 separator(),
@@ -511,7 +511,7 @@ GetBarElem(UIBarElemType type, uint32_t bar)
                          color(Color::Grey15) |
                          bgcolor(Color::Yellow),
                 separator(),
-                text(fmt::format("{:01b}", reg->space_type)) |
+                text(std::format("{:01b}", reg->space_type)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Magenta),
             }) | border,
@@ -521,19 +521,19 @@ GetBarElem(UIBarElemType type, uint32_t bar)
         auto reg = reinterpret_cast<const RegBARMem *>(&bar);
         reg_box = hbox({
             hbox({
-                text(fmt::format("{:028b}", reg->addr)) |
+                text(std::format("{:028b}", reg->addr)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Green),
                 separator(),
-                text(fmt::format("{:01b}", reg->prefetch)) |
+                text(std::format("{:01b}", reg->prefetch)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Yellow),
                 separator(),
-                text(fmt::format("{:02b}", reg->type)) |
+                text(std::format("{:02b}", reg->type)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Blue),
                 separator(),
-                text(fmt::format("{:01b}", reg->space_type)) |
+                text(std::format("{:01b}", reg->space_type)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Magenta),
             }) | border,
@@ -543,15 +543,15 @@ GetBarElem(UIBarElemType type, uint32_t bar)
         auto reg = reinterpret_cast<const RegExpROMBar *>(&bar);
         reg_box = hbox({
             hbox({
-                text(fmt::format("{:021b}", reg->bar)) |
+                text(std::format("{:021b}", reg->bar)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Green),
                 separator(),
-                text(fmt::format("{:010b}", reg->rsvd)) |
+                text(std::format("{:010b}", reg->rsvd)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Yellow),
                 separator(),
-                text(fmt::format("{:01b}", reg->ena)) |
+                text(std::format("{:01b}", reg->ena)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Magenta),
             }) | border,
@@ -626,8 +626,8 @@ RegInfoBARComp(const pci::PciDevBase *dev, const compat_reg_type_t reg_type,
     if (cur_bar_res.type_ == pci::ResourceType::IO) {
         auto reg_box = GetBarElem(UIBarElemType::IoSpace, bar);
         auto desc = vbox({
-            text(fmt::format("phys address: {:#x}", cur_bar_res.phys_addr_)),
-            text(fmt::format("size: {:#x}", cur_bar_res.len_))
+            text(std::format("phys address: {:#x}", cur_bar_res.phys_addr_)),
+            text(std::format("size: {:#x}", cur_bar_res.len_))
         });
 
         content = vbox({
@@ -646,11 +646,11 @@ RegInfoBARComp(const pci::PciDevBase *dev, const compat_reg_type_t reg_type,
             prev_bar_res.type_ == pci::ResourceType::MEMORY &&
             prev_bar_res.is_64bit_ == true) {
             content = vbox({
-                text(fmt::format("Upper 32 bits of address in BAR{}:",
+                text(std::format("Upper 32 bits of address in BAR{}:",
                                         prev_bar_idx)) | bold,
                 separatorLight(),
                 reg_box,
-                text(fmt::format("{:#x}", bar))
+                text(std::format("{:#x}", bar))
             });
         } else {
             content = vbox({
@@ -664,10 +664,10 @@ RegInfoBARComp(const pci::PciDevBase *dev, const compat_reg_type_t reg_type,
     } else { // Memory BAR
         auto reg_box = GetBarElem(UIBarElemType::Memory, bar);
         auto desc = vbox({
-            text(fmt::format("phys address: {:#x}", cur_bar_res.phys_addr_)),
-            text(fmt::format("        size: {:#x}", cur_bar_res.len_)),
-            text(fmt::format("      64-bit: {}", cur_bar_res.is_64bit_ ? "▣ " : "☐ ")),
-            text(fmt::format("prefetchable: {}", cur_bar_res.is_prefetchable_ ? "▣ " : "☐ "))
+            text(std::format("phys address: {:#x}", cur_bar_res.phys_addr_)),
+            text(std::format("        size: {:#x}", cur_bar_res.len_)),
+            text(std::format("      64-bit: {}", cur_bar_res.is_64bit_ ? "▣ " : "☐ ")),
+            text(std::format("prefetchable: {}", cur_bar_res.is_prefetchable_ ? "▣ " : "☐ "))
         });
 
         Elements content_elems {
@@ -683,11 +683,11 @@ RegInfoBARComp(const pci::PciDevBase *dev, const compat_reg_type_t reg_type,
 
             content_elems.push_back(separatorEmpty());
             content_elems.push_back(
-                    text(fmt::format("v2p mappings for PA range [{:#x} - {:#x}]:",
+                    text(std::format("v2p mappings for PA range [{:#x} - {:#x}]:",
                                      pa_start, pa_end)));
             for (const auto &vm_e : dev->v2p_bar_map_info_[bar_idx]) {
                 content_elems.push_back(
-                    text(fmt::format("VA range [{:#x} - {:#x}] -> PA {:#x} len {:#x}",
+                    text(std::format("VA range [{:#x} - {:#x}] -> PA {:#x} len {:#x}",
                                      vm_e.start_, vm_e.end_, vm_e.pa_, vm_e.len_))
                 );
             }
@@ -703,7 +703,7 @@ static Component
 RegInfoCardbusCISComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
     auto type0_dev = dynamic_cast<const pci::PciType0Dev *>(dev);
-    auto content = text(fmt::format("{:02x}", type0_dev->get_cardbus_cis()));
+    auto content = text(std::format("{:02x}", type0_dev->get_cardbus_cis()));
     return CreateRegInfoCompat(Type0Cfg::cardbus_cis_ptr, std::move(content), on_click);
 }
 
@@ -711,7 +711,7 @@ static Component
 RegInfoSubsysVIDComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
     auto type0_dev = dynamic_cast<const pci::PciType0Dev *>(dev);
-    auto content = text(fmt::format("[{:04x}] -> {}", type0_dev->get_subsys_vid(),
+    auto content = text(std::format("[{:04x}] -> {}", type0_dev->get_subsys_vid(),
                                         dev->ids_names_[pci::SUBSYS_NAME].empty() ?
                                         dev->ids_names_[pci::SUBSYS_VENDOR] :
                                         dev->ids_names_[pci::SUBSYS_NAME]));
@@ -722,7 +722,7 @@ static Component
 RegInfoSubsysIDComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
     auto type0_dev = dynamic_cast<const pci::PciType0Dev *>(dev);
-    auto content = text(fmt::format("[{:04x}] -> {}", type0_dev->get_subsys_dev_id(),
+    auto content = text(std::format("[{:04x}] -> {}", type0_dev->get_subsys_dev_id(),
                                         dev->ids_names_[pci::SUBSYS_NAME].empty() ?
                                         dev->ids_names_[pci::SUBSYS_VENDOR] :
                                         dev->ids_names_[pci::SUBSYS_NAME]));
@@ -741,9 +741,9 @@ RegInfoExpROMComp(const pci::PciDevBase *dev, const compat_reg_type_t reg_type,
         auto [start, end, flags] = dev->resources_[6];
         content = vbox({
             reg_box,
-            text(fmt::format("phys address: {:#x}", start)),
-            text(fmt::format("        size: {:#x}", end - start + 1)),
-            text(fmt::format("     enabled: {}", (exp_rom_bar & 0x1) ? "▣ " : "☐ "))
+            text(std::format("phys address: {:#x}", start)),
+            text(std::format("        size: {:#x}", end - start + 1)),
+            text(std::format("     enabled: {}", (exp_rom_bar & 0x1) ? "▣ " : "☐ "))
         });
     } else {
         auto reg_box = GetBarElem(UIBarElemType::Empty, exp_rom_bar);
@@ -767,7 +767,7 @@ RegInfoCapPtrComp(const pci::PciDevBase *dev, const compat_reg_type_t reg_type,
     cap_ptr &= 0xfc;
     auto content = hbox({
             text("Address of the first capability within PCI-compat cfg space: "),
-            text(fmt::format("[{:#x}]", cap_ptr)) | bold
+            text(std::format("[{:#x}]", cap_ptr)) | bold
                         | bgcolor(Color::Green)
                         | color(Color::Grey15)
     });
@@ -779,7 +779,7 @@ RegInfoItrLineComp(const pci::PciDevBase *dev, const compat_reg_type_t reg_type,
                    const uint8_t *on_click)
 {
     auto itr_line = dev->get_itr_line();
-    auto content = text(fmt::format("IRQ [{:#x}]", itr_line));
+    auto content = text(std::format("IRQ [{:#x}]", itr_line));
     return CreateRegInfoCompat(reg_type, std::move(content), on_click);
 }
 
@@ -809,7 +809,7 @@ RegInfoItrPinComp(const pci::PciDevBase *dev, const compat_reg_type_t reg_type,
         desc = "rsvd";
     }
 
-    auto content = text(fmt::format("[{:#x}] -> {}", itr_pin, desc));
+    auto content = text(std::format("[{:#x}] -> {}", itr_pin, desc));
     return CreateRegInfoCompat(reg_type, std::move(content), on_click);
 }
 
@@ -818,7 +818,7 @@ RegInfoMinGntComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
     auto type0_dev = dynamic_cast<const pci::PciType0Dev *>(dev);
     auto min_gnt = type0_dev->get_min_gnt();
-    auto content = text(fmt::format("[{:#x}]", min_gnt));
+    auto content = text(std::format("[{:#x}]", min_gnt));
     return CreateRegInfoCompat(Type0Cfg::min_gnt, std::move(content), on_click);
 }
 
@@ -827,7 +827,7 @@ RegInfoMaxLatComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
     auto type0_dev = dynamic_cast<const pci::PciType0Dev *>(dev);
     auto max_lat = type0_dev->get_max_lat();
-    auto content = text(fmt::format("[{:#x}]", max_lat));
+    auto content = text(std::format("[{:#x}]", max_lat));
     return CreateRegInfoCompat(Type0Cfg::max_lat, std::move(content), on_click);
 }
 
@@ -836,7 +836,7 @@ RegInfoPrimBusNumComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
     auto type1_dev = dynamic_cast<const pci::PciType1Dev *>(dev);
     auto prim_bus = type1_dev->get_prim_bus_num();
-    auto content = text(fmt::format("[{:#x}]", prim_bus));
+    auto content = text(std::format("[{:#x}]", prim_bus));
     return CreateRegInfoCompat(Type1Cfg::prim_bus_num, std::move(content), on_click);
 }
 
@@ -845,7 +845,7 @@ RegInfoSecBusNumComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
     auto type1_dev = dynamic_cast<const pci::PciType1Dev *>(dev);
     auto sec_bus = type1_dev->get_sec_bus_num();
-    auto content = text(fmt::format("[{:#x}]", sec_bus));
+    auto content = text(std::format("[{:#x}]", sec_bus));
     return CreateRegInfoCompat(Type1Cfg::sec_bus_num, std::move(content), on_click);
 }
 
@@ -854,7 +854,7 @@ RegInfoSubBusNumComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
     auto type1_dev = dynamic_cast<const pci::PciType1Dev *>(dev);
     auto sub_bus = type1_dev->get_sub_bus_num();
-    auto content = text(fmt::format("[{:#x}]", sub_bus));
+    auto content = text(std::format("[{:#x}]", sub_bus));
     return CreateRegInfoCompat(Type1Cfg::sub_bus_num, std::move(content), on_click);
 }
 
@@ -862,7 +862,7 @@ static Component
 RegInfoSecLatTmrComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 {
     auto type1_dev = dynamic_cast<const pci::PciType1Dev *>(dev);
-    auto content = text(fmt::format("Sec Latency Tmr: {:02x}", type1_dev->get_sec_lat_timer()));
+    auto content = text(std::format("Sec Latency Tmr: {:02x}", type1_dev->get_sec_lat_timer()));
     return CreateRegInfoCompat(Type1Cfg::sec_lat_timer, std::move(content), on_click);
 }
 
@@ -873,16 +873,16 @@ RegInfoIOBaseComp(const pci::PciDevBase *dev, const uint8_t *on_click)
     auto io_base = type1_dev->get_io_base();
     Element content;
     if (io_base == 0) {
-        content = text(fmt::format("[{:02x}] -> uninitialized", io_base));
+        content = text(std::format("[{:02x}] -> uninitialized", io_base));
     } else {
         auto io_base_reg = reinterpret_cast<const RegIOBase *>(&io_base);
         auto reg_box = hbox({
             hbox({
-                text(fmt::format("{:04b}", io_base_reg->addr)) |
+                text(std::format("{:04b}", io_base_reg->addr)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Green),
                 separator(),
-                text(fmt::format("{:04b}", io_base_reg->cap)) |
+                text(std::format("{:04b}", io_base_reg->cap)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Magenta),
             }) | border,
@@ -896,8 +896,8 @@ RegInfoIOBaseComp(const pci::PciDevBase *dev, const uint8_t *on_click)
         }
 
         auto desc = vbox({
-            text(fmt::format("i/o base address:     {:#04x}", addr)),
-            text(fmt::format("i/o addressing width: {}", io_base_reg->cap == 0 ?
+            text(std::format("i/o base address:     {:#04x}", addr)),
+            text(std::format("i/o addressing width: {}", io_base_reg->cap == 0 ?
                                                                 "16-bit" : "32-bit")),
         });
 
@@ -918,16 +918,16 @@ RegInfoIOLimitComp(const pci::PciDevBase *dev, const uint8_t *on_click)
     auto io_limit = type1_dev->get_io_limit();
     Element content;
     if (io_limit == 0 && !io_base) {
-        content = text(fmt::format("[{:02x}] -> uninitialized", io_limit));
+        content = text(std::format("[{:02x}] -> uninitialized", io_limit));
     } else {
         auto io_limit_reg = reinterpret_cast<const RegIOLimit *>(&io_limit);
         auto reg_box = hbox({
             hbox({
-                text(fmt::format("{:04b}", io_limit_reg->addr)) |
+                text(std::format("{:04b}", io_limit_reg->addr)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Green),
                 separator(),
-                text(fmt::format("{:04b}", io_limit_reg->cap)) |
+                text(std::format("{:04b}", io_limit_reg->cap)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Magenta),
             }) | border,
@@ -941,8 +941,8 @@ RegInfoIOLimitComp(const pci::PciDevBase *dev, const uint8_t *on_click)
         }
 
         auto desc = vbox({
-            text(fmt::format("           i/o limit: {:#04x}", addr)),
-            text(fmt::format("i/o addressing width: {}", io_limit_reg->cap == 0 ?
+            text(std::format("           i/o limit: {:#04x}", addr)),
+            text(std::format("i/o addressing width: {}", io_limit_reg->cap == 0 ?
                                                          "16-bit" : "32-bit")),
         });
 
@@ -967,7 +967,7 @@ RegInfoUpperIOBaseComp(const pci::PciDevBase *dev, const uint8_t *on_click)
     if (io_base_reg->cap == 1) {
         auto reg_box = hbox({
             hbox({
-                text(fmt::format("{:016b}", type1_dev->get_io_base_upper())) |
+                text(std::format("{:016b}", type1_dev->get_io_base_upper())) |
                          color(Color::Grey15) |
                          bgcolor(Color::Green)
             }) | border,
@@ -976,12 +976,12 @@ RegInfoUpperIOBaseComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 
         content = vbox({
             reg_box,
-            text(fmt::format("Upper 16 bits of I/O Base: {:04x}",
+            text(std::format("Upper 16 bits of I/O Base: {:04x}",
                              type1_dev->get_io_base_upper()))
         });
     } else {
         content = vbox({
-            text(fmt::format("[{}]: 32-bit addressing is not supported",
+            text(std::format("[{}]: 32-bit addressing is not supported",
                              type1_dev->get_io_base_upper()))
         });
     }
@@ -1001,7 +1001,7 @@ RegInfoUpperIOLimitComp(const pci::PciDevBase *dev, const uint8_t *on_click)
     if (io_limit_reg->cap == 1) {
         auto reg_box = hbox({
             hbox({
-                text(fmt::format("{:16b}", type1_dev->get_io_limit_upper())) |
+                text(std::format("{:16b}", type1_dev->get_io_limit_upper())) |
                          color(Color::Grey15) |
                          bgcolor(Color::Green)
             }) | border,
@@ -1010,12 +1010,12 @@ RegInfoUpperIOLimitComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 
         content = vbox({
             reg_box,
-            text(fmt::format("Upper 16 bits of I/O Limit: {:04x}",
+            text(std::format("Upper 16 bits of I/O Limit: {:04x}",
                              type1_dev->get_io_limit_upper()))
         });
     } else {
         content = vbox({
-            text(fmt::format("[{}]: 32-bit addressing is not supported",
+            text(std::format("[{}]: 32-bit addressing is not supported",
                              type1_dev->get_io_limit_upper()))
         });
     }
@@ -1036,7 +1036,7 @@ RegInfoSecStatusComp(const pci::PciDevBase *dev, const uint8_t *on_click)
         RegFieldCompElem(6, 6),
         RegFieldCompElem(7, 7,   " fast b2b transactions capable", reg->fast_b2b_trans_cap == 1),
         RegFieldCompElem(8, 8,   " master data parity error", reg->master_data_par_err == 1),
-        RegFieldCompElem(9, 10,  fmt::format(" DEVSEL timing: {}", reg->devsel_timing)),
+        RegFieldCompElem(9, 10,  std::format(" DEVSEL timing: {}", reg->devsel_timing)),
         RegFieldCompElem(11, 11, " signaled target abort", reg->signaled_tgt_abort == 1),
         RegFieldCompElem(12, 12, " received target abort", reg->recv_tgt_abort == 1),
         RegFieldCompElem(13, 13, " received master abort", reg->recv_master_abort == 1),
@@ -1054,16 +1054,16 @@ RegInfoMemoryBaseComp(const pci::PciDevBase *dev, const uint8_t *on_click)
     auto mem_base = type1_dev->get_mem_base();
     Element content;
     if (mem_base == 0) {
-        content = text(fmt::format("[{:02x}] -> uninitialized", mem_base));
+        content = text(std::format("[{:02x}] -> uninitialized", mem_base));
     } else {
         auto mem_base_reg = reinterpret_cast<const RegMemBL *>(&mem_base);
         auto reg_box = hbox({
             hbox({
-                text(fmt::format("{:012b}", mem_base_reg->addr)) |
+                text(std::format("{:012b}", mem_base_reg->addr)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Magenta),
                 separator(),
-                text(fmt::format("{:04b}", mem_base_reg->rsvd)) |
+                text(std::format("{:04b}", mem_base_reg->rsvd)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Green),
             }) | border,
@@ -1072,7 +1072,7 @@ RegInfoMemoryBaseComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 
         content = vbox({
             reg_box,
-            text(fmt::format("mem base address: {:#x}",
+            text(std::format("mem base address: {:#x}",
                         (uint32_t)mem_base_reg->addr << 20))
         });
     }
@@ -1088,16 +1088,16 @@ RegInfoMemoryLimitComp(const pci::PciDevBase *dev, const uint8_t *on_click)
     auto mem_limit = type1_dev->get_mem_limit();
     Element content;
     if (mem_limit == 0 && !mem_base) {
-        content = text(fmt::format("[{:02x}] -> uninitialized", mem_limit));
+        content = text(std::format("[{:02x}] -> uninitialized", mem_limit));
     } else {
         auto mem_limit_reg = reinterpret_cast<const RegMemBL *>(&mem_limit);
         auto reg_box = hbox({
             hbox({
-                text(fmt::format("{:12b}", mem_limit_reg->addr)) |
+                text(std::format("{:12b}", mem_limit_reg->addr)) |
                      color(Color::Grey15) |
                      bgcolor(Color::Magenta),
                 separator(),
-                text(fmt::format("{:04b}", mem_limit_reg->rsvd)) |
+                text(std::format("{:04b}", mem_limit_reg->rsvd)) |
                      color(Color::Grey15) |
                      bgcolor(Color::Green),
             }) | border,
@@ -1106,7 +1106,7 @@ RegInfoMemoryLimitComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 
         content = vbox({
             reg_box,
-            text(fmt::format("mem limit: {:#x}",
+            text(std::format("mem limit: {:#x}",
                         (uint32_t)mem_limit_reg->addr << 20 | 0xfffff)),
         });
     }
@@ -1121,16 +1121,16 @@ RegInfoPrefMemBaseComp(const pci::PciDevBase *dev, const uint8_t *on_click)
     auto pref_mem_base = type1_dev->get_pref_mem_base();
     Element content;
     if (pref_mem_base == 0) {
-        content = text(fmt::format("[{:02x}] -> uninitialized", pref_mem_base));
+        content = text(std::format("[{:02x}] -> uninitialized", pref_mem_base));
     } else {
         auto pref_mem_base_reg = reinterpret_cast<const RegPrefMemBL *>(&pref_mem_base);
         auto reg_box = hbox({
             hbox({
-                text(fmt::format("{:012b}", pref_mem_base_reg->addr)) |
+                text(std::format("{:012b}", pref_mem_base_reg->addr)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Green),
                 separator(),
-                text(fmt::format("{:04b}", pref_mem_base_reg->cap)) |
+                text(std::format("{:04b}", pref_mem_base_reg->cap)) |
                          color(Color::Grey15) |
                          bgcolor(Color::Magenta),
             }) | border,
@@ -1144,8 +1144,8 @@ RegInfoPrefMemBaseComp(const pci::PciDevBase *dev, const uint8_t *on_click)
         }
 
         auto desc = vbox({
-            text(fmt::format("prefetchable mem base address:     {:#x}", addr)),
-            text(fmt::format("prefetchable mem addressing width: {}",
+            text(std::format("prefetchable mem base address:     {:#x}", addr)),
+            text(std::format("prefetchable mem addressing width: {}",
                              pref_mem_base_reg->cap == 0 ? "32-bit" : "64-bit"))
         });
 
@@ -1166,16 +1166,16 @@ RegInfoPrefMemLimitComp(const pci::PciDevBase *dev, const uint8_t *on_click)
     auto pref_mem_limit = type1_dev->get_pref_mem_limit();
     Element content;
     if (pref_mem_limit == 0 && !pref_mem_base) {
-        content = text(fmt::format("[{:02x}] -> uninitialized", pref_mem_limit));
+        content = text(std::format("[{:02x}] -> uninitialized", pref_mem_limit));
     } else {
         auto pref_mem_limit_reg = reinterpret_cast<const RegPrefMemBL *>(&pref_mem_limit);
         auto reg_box = hbox({
             hbox({
-                text(fmt::format("{:012b}", pref_mem_limit_reg->addr)) |
+                text(std::format("{:012b}", pref_mem_limit_reg->addr)) |
                      color(Color::Grey15) |
                      bgcolor(Color::Green),
                 separator(),
-                text(fmt::format("{:04b}", pref_mem_limit_reg->cap)) |
+                text(std::format("{:04b}", pref_mem_limit_reg->cap)) |
                      color(Color::Grey15) |
                      bgcolor(Color::Magenta),
             }) | border,
@@ -1189,8 +1189,8 @@ RegInfoPrefMemLimitComp(const pci::PciDevBase *dev, const uint8_t *on_click)
         }
 
         auto desc = vbox({
-            text(fmt::format("prefetchable mem limit:            {:#x}", limit)),
-            text(fmt::format("prefetchable mem addressing width: {}",
+            text(std::format("prefetchable mem limit:            {:#x}", limit)),
+            text(std::format("prefetchable mem addressing width: {}",
                              pref_mem_limit_reg->cap == 0 ? "32-bit" : "64-bit"))
         });
 
@@ -1215,7 +1215,7 @@ RegInfoPrefBaseUpperComp(const pci::PciDevBase *dev, const uint8_t *on_click)
     if (pref_mem_base_reg->cap == 1) {
         auto reg_box = hbox({
             hbox({
-                text(fmt::format("{:032b}", type1_dev->get_pref_base_upper())) |
+                text(std::format("{:032b}", type1_dev->get_pref_base_upper())) |
                      color(Color::Grey15) |
                      bgcolor(Color::Green)
             }) | border,
@@ -1224,12 +1224,12 @@ RegInfoPrefBaseUpperComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 
         content = vbox({
             reg_box,
-            text(fmt::format("Upper 32 bits of prefetchable mem base: {:#x}",
+            text(std::format("Upper 32 bits of prefetchable mem base: {:#x}",
                              type1_dev->get_pref_base_upper()))
         });
     } else {
         content = vbox({
-            text(fmt::format("[{}]: 64-bit addressing is not supported",
+            text(std::format("[{}]: 64-bit addressing is not supported",
                              type1_dev->get_pref_base_upper()))
         });
     }
@@ -1249,7 +1249,7 @@ RegInfoPrefLimitUpperComp(const pci::PciDevBase *dev, const uint8_t *on_click)
     if (pref_mem_limit_reg->cap == 1) {
         auto reg_box = hbox({
             hbox({
-                text(fmt::format("{:032b}", type1_dev->get_pref_limit_upper())) |
+                text(std::format("{:032b}", type1_dev->get_pref_limit_upper())) |
                          color(Color::Grey15) |
                          bgcolor(Color::Green)
             }) | border,
@@ -1258,12 +1258,12 @@ RegInfoPrefLimitUpperComp(const pci::PciDevBase *dev, const uint8_t *on_click)
 
         content = vbox({
             reg_box,
-            text(fmt::format("Upper 32 bits of prefetchable mem limit: {:#x}",
+            text(std::format("Upper 32 bits of prefetchable mem limit: {:#x}",
                                     type1_dev->get_pref_limit_upper()))
         });
     } else {
         content = vbox({
-            text(fmt::format("[{}]: 64-bit addressing is not supported",
+            text(std::format("[{}]: 64-bit addressing is not supported",
                                     type1_dev->get_pref_limit_upper()))
         });
     }
@@ -1700,17 +1700,17 @@ CapDelimComp(const pci::CapDesc &cap)
     std::string label;
     if (type == pci::CapType::compat) {
         auto compat_cap_type = CompatCapID {std::get<1>(cap)};
-        label = fmt::format(">>> {} [compat] ", CompatCapName(compat_cap_type));
+        label = std::format(">>> {} [compat] ", CompatCapName(compat_cap_type));
     } else {
         auto ext_cap_type = ExtCapID {std::get<1>(cap)};
-        label = fmt::format(">>> {} [extended] ", ExtCapName(ext_cap_type));
+        label = std::format(">>> {} [extended] ", ExtCapName(ext_cap_type));
     }
 
     auto comp = Renderer([=] {
         return vbox({
             hbox({
                 text(label) | inverted | bold,
-                text(fmt::format("[{:#02x}]", off)) | bold |
+                text(std::format("[{:#02x}]", off)) | bold |
                 bgcolor(Color::Magenta) | color(Color::Grey15)
             }),
             separatorLight()
@@ -1727,7 +1727,7 @@ CapsDelimComp(const pci::CapType type, const uint8_t caps_num)
                     separatorEmpty(),
                     hbox({
                         separatorHeavy() | flex,
-                        text(fmt::format("[{} {} cap(s)]", caps_num,
+                        text(std::format("[{} {} cap(s)]", caps_num,
                                          type == pci::CapType::compat ?
                                          "compatible" : "extended")) |
                         bold | inverted | center,
@@ -1747,29 +1747,29 @@ CapHdrComp(const cap_hdr_type_t cap_hdr)
         using T = std::decay_t<decltype(hdr)>;
         if constexpr (std::is_same_v<T, CompatCapHdr>) {
             elem = hbox({
-                text(fmt::format("next: {:#3x}", hdr.next_cap)) |
+                text(std::format("next: {:#3x}", hdr.next_cap)) |
                      bold | center |
                      color(Color::Grey15) |
                      bgcolor(Color::Green),
                 separatorEmpty(),
-                text(fmt::format("id: {:#3x}", hdr.cap_id)) |
+                text(std::format("id: {:#3x}", hdr.cap_id)) |
                      bold | center |
                      color(Color::Grey15) |
                      bgcolor(Color::Blue)
             }) | border;
         } else {
             elem = hbox({
-                text(fmt::format("next: {:#5x}", hdr.next_cap)) |
+                text(std::format("next: {:#5x}", hdr.next_cap)) |
                      bold | center |
                      color(Color::Grey15) |
                      bgcolor(Color::Green),
                 separatorEmpty(),
-                text(fmt::format("ver: {:#5x}", hdr.cap_ver)) |
+                text(std::format("ver: {:#5x}", hdr.cap_ver)) |
                      bold | center |
                      color(Color::Grey15) |
                      bgcolor(Color::Yellow),
                 separatorEmpty(),
-                text(fmt::format("id: {:#5x}", hdr.cap_id)) |
+                text(std::format("id: {:#5x}", hdr.cap_id)) |
                      bold | center |
                      color(Color::Grey15) |
                      bgcolor(Color::Blue),
@@ -1794,7 +1794,7 @@ Component
 CreateCapRegInfo(const std::string &cap_desc, const std::string &cap_reg, Element content,
                  const uint8_t *on_click)
 {
-    auto title = text(fmt::format("{} -> {}", cap_desc, cap_reg)) |
+    auto title = text(std::format("{} -> {}", cap_desc, cap_reg)) |
                              inverted | align_right | bold;
     auto info_window = window(std::move(title), std::move(content));
     return GetCompMaybe(std::move(info_window), on_click);

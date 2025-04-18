@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2024-2025 Petr Vyazovik <xen@f-m.fm>
 
 #include "log.h"
 #include "snapshot.h"
+#include <chrono>
+#include <cstring>
 #include <numeric>
-#include <fmt/chrono.h>
 
 #include <fcntl.h>
 
@@ -33,9 +34,12 @@ SnapshotProvider::StoreMainHeader(const uint64_t size, const uint32_t dev_cnt, c
     header->dev_cnt_ = dev_cnt;
     header->bus_cnt_ = bus_cnt;
 
+    auto time_now_sec = std::chrono::time_point_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now());
+    auto zt_now = std::chrono::zoned_time{std::chrono::current_zone(), time_now_sec};
     logger.log(Verbosity::INFO,
                "Snapshot header: ts -> {:%Y/%m/%d - %T %z} full size -> {} dev_cnt {} bus_cnt {}",
-               fmt::localtime(tm_s), size + sizeof(buffer), dev_cnt, bus_cnt);
+               zt_now, size + sizeof(buffer), dev_cnt, bus_cnt);
 
     auto res = pwrite(fd_, buffer, sizeof(buffer), 0);
     if (res < 0) {
@@ -302,13 +306,12 @@ SnapshotProvider::SnapshotParsePrepare()
     using namespace std::chrono;
 
     system_clock::time_point ts_tp{seconds{snap_md->ts_}};
-    time_t in_time_t = system_clock::to_time_t(ts_tp);
-    // XXX: using fmt::localtime() produces warnings like this one:
-    // /usr/include/fmt/base.h:1213:31: warning: writing 8 bytes into a region of size 7
-    // Seems to be a compiler false-positive warning
+    auto tss = time_point_cast<seconds>(ts_tp);
+    auto zt_local_tss = zoned_time{current_zone(), tss};
+
     logger.log(Verbosity::INFO,
                "snapshot: created {:%Y/%m/%d - %T %z} size {} dev_cnt {} bus_cnt {}",
-               fmt::localtime(in_time_t), snap_md->fsize_, snap_md->dev_cnt_,
+               zt_local_tss, snap_md->fsize_, snap_md->dev_cnt_,
                snap_md->bus_cnt_);
 
     if (snap_md->dev_cnt_ == 0 || snap_md->bus_cnt_ == 0) {

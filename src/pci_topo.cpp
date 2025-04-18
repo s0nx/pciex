@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2024-2025 Petr Vyazovik <xen@f-m.fm>
 
 #include "pci_dev.h"
 #include "pci_topo.h"
@@ -7,7 +7,7 @@
 #include "log.h"
 #include "util.h"
 
-#include <fmt/format.h>
+#include <format>
 
 extern Logger logger;
 
@@ -61,7 +61,7 @@ void PCITopologyCtx::Populate(Provider &provider)
             });
             auto res = buses_.insert(std::make_pair(std::get<1>(bus), std::move(pci_bus)));
             if (!res.second)
-                throw std::runtime_error(fmt::format("Failed to initialize bus {:02x}",
+                throw std::runtime_error(std::format("Failed to initialize bus {:02x}",
                                          std::get<1>(bus)));
         }
     } catch (std::exception &ex) {
@@ -96,7 +96,7 @@ void PCITopologyCtx::PrintBus(const PCIBus &bus, int off)
 {
     for (const auto &dev : bus.devs_) {
         if (dev->type_ == pci::pci_dev_type::TYPE1) {
-            auto fmt_str = fmt::format("{:\t>{}} \\--> {}", "", off, dev->dev_id_str_);
+            auto fmt_str = std::format("{:\t>{}} \\--> {}", "", off, dev->dev_id_str_);
             logger.log(Verbosity::RAW, "{}", fmt_str);
 
             auto type1_dev = dynamic_cast<PciType1Dev *>(dev.get());
@@ -106,7 +106,7 @@ void PCITopologyCtx::PrintBus(const PCIBus &bus, int off)
             }
 
         } else {
-            auto fmt_str = fmt::format("{:\t>{}} \\--> {}", "", off, dev->dev_id_str_);
+            auto fmt_str = std::format("{:\t>{}} \\--> {}", "", off, dev->dev_id_str_);
             logger.log(Verbosity::RAW, "{}", fmt_str);
         }
     }

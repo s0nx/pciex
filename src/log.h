@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2023-2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2023-2025 Petr Vyazovik <xen@f-m.fm>
 
 #pragma once
 
 #include <cstdio>
-#include <fmt/printf.h>
+#include <print>
 
 enum class Verbosity
 {
@@ -46,11 +46,11 @@ struct Logger
     void init();
 
     template <class... Args>
-    void log(const Verbosity verb_lvl, fmt::format_string<Args...> s, Args&&... args)
+    void log(const Verbosity verb_lvl, std::format_string<Args...> s, Args&&... args)
     {
         if (log_file_ != nullptr && LoggerVerbosity >= verb_lvl) {
-            fmt::print(log_file_, "{:>7} {}\n", VerbName(verb_lvl),
-                       fmt::format(s, std::forward<Args>(args)...));
+            std::print(log_file_, "{:>7} {}\n", VerbName(verb_lvl),
+                       std::format(s, std::forward<Args>(args)...));
             std::fflush(log_file_);
         }
     }

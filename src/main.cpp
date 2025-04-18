@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2023-2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2023-2025 Petr Vyazovik <xen@f-m.fm>
 
 #include <unistd.h>
 
@@ -30,14 +30,14 @@ int main(int argc, char *argv[])
 
         if (cfg::OpModeNeedsElPriv(cmdline_options.mode_)) {
             if (getuid()) {
-                fmt::print("'pciex' must be run with root privileges in [{}] mode. Exiting.\n",
+                std::print("'pciex' must be run with root privileges in [{}] mode. Exiting.\n",
                            cfg::OpModeName(cmdline_options.mode_));
                 throw std::runtime_error("Insufficient execution privileges");
             }
         }
 
         if (std::endian::native != std::endian::little) {
-            fmt::print("Non little-endian platforms are not supported by now. Exiting.\n");
+            std::print("Non little-endian platforms are not supported by now. Exiting.\n");
             throw std::runtime_error("Unsupported endianness");
         }
 
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
             screen.Loop(main_comp);
         }
     } catch (std::exception &ex) {
-        fmt::print("[{}] mode failure -> {}\nCheck log for details\n",
+        std::print("[{}] mode failure -> {}\nCheck log for details\n",
                    cfg::OpModeName(cmdline_options.mode_), ex.what());
         return EXIT_FAILURE;
     }

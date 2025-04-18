@@ -15,18 +15,11 @@ terminal-based PCI topology explorer for Linux
  * ... more to come :)
 
 ## Requirements
- * compiler supporting `C++20`
+ * compiler supporting `C++23`
  * `cmake`
  * `hwdata` (for device IDs)
- * [fmt](https://github.com/fmtlib/fmt) library
 
-## Installation
-### fmt packages
- * Ubuntu 24.04: `libfmt-dev`,`libfmt9`
- * Arch Linux: `fmt`
- * Fedora 40: `fmt`,`fmt-devel`
-
-### Building
+## Building
 ```
 git clone https://github.com/s0nx/pciex.git
 cd pciex && mkdir build
@@ -57,7 +50,6 @@ Help window can be accessed at any time by pressing `?` key.
 ## References
 The following libraries are used by this tool:
  * UI is built using [FTXUI](https://github.com/ArthurSonzogni/FTXUI)
- * [fmt](https://github.com/fmtlib/fmt) - text formatting
  * [CLI11](https://github.com/CLIUtils/CLI11) - command line parsing
 
 ## Misc
