@@ -1,0 +1,11 @@
+{
+	"common": {
+		"logging_enabled" : true,
+		"default_log_level" : 5,
+		"hwdata_db_path" : "/usr/share/hwdata/pci.ids"
+	},
+	"tui": {
+		"dt_dflt_draw_verbose" : true,
+		"keep_dev_selected_regs" : true
+	}
+}

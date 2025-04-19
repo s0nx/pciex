@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2023-2025 Petr Vyazovik <xen@f-m.fm>
 
+#include "config.h"
 #include "log.h"
 #include "screen.h"
 #include "common_comp.h"
@@ -11,6 +12,7 @@
 #include <algorithm>
 #include <format>
 
+extern cfg::PCIexCfg pciex_cfg;
 extern Logger logger;
 
 using namespace ftxui;
@@ -728,7 +730,7 @@ bool ScrollableComp::OnEvent(Event event) {
 
 static Component MakeScrollableComp(Component child)
 {
-    return Make<ScrollableComp>(std::move(child));
+    return Make<ScrollableComp>(child);
 }
 
 Element PCIRegsComponent::OnRender()
@@ -737,21 +739,43 @@ Element PCIRegsComponent::OnRender()
     if (cur_dev_ == selected_device) {
         return ComponentBase::Render();
     } else {
+        bool should_preserve_vis_state {pciex_cfg.tui.keep_dev_selected_regs};
+        if (should_preserve_vis_state && cur_dev_) {
+            vis_state_map_.insert_or_assign(cur_dev_->dev_id_,
+                                            std::move(vis_state_));
+            comp_map_.insert_or_assign(cur_dev_->dev_id_,
+                                       split_comp_);
+        }
+
         cur_dev_ = selected_device;
         DetachAllChildren();
-        vis_state_.clear();
 
+        vis_state_.clear();
         // FIXME: Internal reallocation would break element visibility state tracking,
         // so reserve some space in advance
         vis_state_.reserve(interactive_elem_max_);
 
-        CreateComponent();
+        if (should_preserve_vis_state && cur_dev_) {
+            // try to obtain previous highlighting state for the newly
+            // selected device
+            auto vis_state_iter = vis_state_map_.find(cur_dev_->dev_id_);
+            if (vis_state_iter != vis_state_map_.end())
+                vis_state_ = std::move(vis_state_iter->second);
+
+            // get the split component
+            auto comp_iter = comp_map_.find(cur_dev_->dev_id_);
+            if (comp_iter != comp_map_.end())
+                split_comp_ = comp_iter->second;
+            else
+                CreateComponent();
+        } else {
+            CreateComponent();
+        }
 
         Add(split_comp_);
 
         return ComponentBase::Render();
     }
-
 }
 
 std::string PCIRegsComponent::PrintCurDevInfo() noexcept
@@ -828,8 +852,9 @@ void PCIRegsComponent::FinalizeComponent()
 {
     auto lower_comp = MakeScrollableComp(lower_split_comp_);
 
-    auto upper_comp_renderer = Renderer(upper_split_comp_, [&] {
-        return upper_split_comp_->Render() | vscroll_indicator |
+    auto upper_comp = upper_split_comp_;
+    auto upper_comp_renderer = Renderer(upper_comp, [=] {
+        return upper_comp->Render() | vscroll_indicator |
                hscroll_indicator | frame;
     });
 
@@ -1028,8 +1053,10 @@ ScreenCompCtx::ScreenCompCtx(const pci::PCITopologyCtx &topo_ctx) :
 Component
 ScreenCompCtx::Create()
 {
-    auto [width, height] = GetCanvasSizeEstimate(topo_ctx_, ElemReprMode::Compact);
-    topo_canvas_ = MakeTopologyComp(width, height, topo_ctx_);
+    auto draw_mode = pciex_cfg.tui.dt_dflt_draw_verbose ?
+                     ElemReprMode::Verbose : ElemReprMode::Compact;
+    auto [width, height] = GetCanvasSizeEstimate(topo_ctx_, draw_mode);
+    topo_canvas_ = MakeTopologyComp(width, height, topo_ctx_, draw_mode);
     topo_canvas_comp_ = MakeBorderedHoverComp(topo_canvas_);
 
     pci_regs_comp_ = std::make_shared<PCIRegsComponent>(topo_canvas_);

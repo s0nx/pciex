@@ -5,10 +5,12 @@
 #include <filesystem>
 #include <format>
 
+#include "config.h"
 #include "ids_parse.h"
 #include "log.h"
 
 extern Logger logger;
+extern cfg::PCIexCfg pciex_cfg;
 
 namespace fs = std::filesystem;
 
@@ -16,7 +18,7 @@ using namespace pci;
 
 PciIdParser::PciIdParser()
 {
-    auto ids_db_path = fs::path(pci_ids_db_path);
+    auto ids_db_path = fs::path(pciex_cfg.common.hwdata_db_path);
     auto ids_db_entry = fs::directory_entry(ids_db_path);
     db_size_ = ids_db_entry.file_size();
 

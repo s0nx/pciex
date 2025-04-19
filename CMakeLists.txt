@@ -23,6 +23,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(cli11)
 
+# glaze
+FetchContent_Declare(
+  glaze
+  GIT_REPOSITORY https://github.com/stephenberry/glaze.git
+  GIT_TAG main
+  #GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(glaze)
+
 # XXX: it seems target_compile_features(... cxx_std_20) doesn't propagate
 # version to cli11, so set the version explicitly
 set(CMAKE_CXX_STANDARD 23)
@@ -61,8 +70,8 @@ target_link_libraries(pciex
     PRIVATE ftxui::dom
     PRIVATE ftxui::component
 )
-
 target_link_libraries(pciex PRIVATE CLI11::CLI11)
+target_link_libraries(pciex PRIVATE glaze::glaze)
 
 # creates pciex_version.h using cmake script
 add_custom_command(

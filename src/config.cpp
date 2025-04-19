@@ -7,6 +7,7 @@
 #include "util.h"
 
 #include <CLI/CLI.hpp>
+#include <glaze/glaze.hpp>
 
 extern Logger logger;
 
@@ -122,6 +123,70 @@ void CmdLOpts::Dump()
                OpModeName(mode_),
                snapshot_path_,
                OpModeNeedsElPriv(mode_));
+}
+
+static bool CommonConfigIsValid(const PCIexCommonCfg &common_cfg)
+{
+    // check log level
+    const auto &level = common_cfg.default_log_level;
+    if (level != std::clamp(level, e_to_type(Verbosity::FATAL),
+                                   e_to_type(Verbosity::RAW))) {
+        std::print("cfg.common: Default logging level should be in range [{} to {}]\n",
+                   e_to_type(Verbosity::FATAL), e_to_type(Verbosity::RAW));
+        return false;
+    }
+
+    // check if hwdata db file exist
+    std::filesystem::directory_entry hwdata_db_dir_e {common_cfg.hwdata_db_path};
+    if (!hwdata_db_dir_e.exists()) {
+        std::print("cfg.common: hwdata db [{}] doesn't exist\n", common_cfg.hwdata_db_path);
+        return false;
+    }
+
+    return true;
+}
+
+static bool TUIConfigIsValid([[maybe_unused]] const PCIexTUICfg &common_cfg)
+{
+    return true;
+}
+
+static bool ConfigIsValid(const PCIexCfg &cfg)
+{
+    if (!CommonConfigIsValid(cfg.common))
+        return false;
+
+    if (!TUIConfigIsValid(cfg.tui))
+        return false;
+
+    return true;
+}
+
+constexpr std::string_view cfg_file_path { "/etc/pciex/config.json" };
+
+void ParseConfig(PCIexCfg &cfg)
+{
+    std::filesystem::directory_entry cfg_dir_e {cfg_file_path};
+    if (!cfg_dir_e.exists()) {
+        std::print("No user-defined config. Using default one.\n");
+        return;
+    }
+
+    PCIexCfg ext_cfg{};
+    std::string buffer{};
+    auto ec = glz::read_file_json(ext_cfg, cfg_file_path, buffer);
+    if (ec) {
+        auto err_msg =
+            std::format("Failed to parse JSON config file {} -> {}\n", cfg_file_path,
+                        glz::format_error(ec, buffer));
+        throw std::runtime_error(err_msg);
+    }
+
+    // Some of the fields in config file need explicit validation
+    if (!ConfigIsValid(ext_cfg))
+        throw std::runtime_error("Config validation has failed");
+
+    cfg = ext_cfg;
 }
 
 } // namespace cfg

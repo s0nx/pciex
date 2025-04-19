@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2024-2025 Petr Vyazovik <xen@f-m.fm>
 
+#include "config.h"
 #include "log.h"
 
 #include <filesystem>
@@ -11,6 +12,8 @@
 
 #include <chrono>
 #include <format>
+
+extern cfg::PCIexCfg pciex_cfg;
 
 namespace fs = std::filesystem;
 
@@ -62,13 +65,17 @@ static std::string GenLogFname()
 
 void Logger::init()
 {
-    auto logs_dir_path = CreateLogsDir();
-    auto log_file_path = logs_dir_path / GenLogFname();
-    log_file_ = std::fopen(log_file_path.c_str(), "w");
-    if (!log_file_)
-        throw std::runtime_error(
-                std::format("Failed to open log file {}, err {}",
-                            log_file_path.c_str(), errno));
+    if (pciex_cfg.common.logging_enabled) {
+        auto logs_dir_path = CreateLogsDir();
+        auto log_file_path = logs_dir_path / GenLogFname();
+        log_file_ = std::fopen(log_file_path.c_str(), "w");
+        if (!log_file_)
+            throw std::runtime_error(
+                    std::format("Failed to open log file {}, err {}",
+                                log_file_path.c_str(), errno));
+
+        logger_verbosity_ = Verbosity{pciex_cfg.common.default_log_level};
+    }
 }
 
 Logger::~Logger()

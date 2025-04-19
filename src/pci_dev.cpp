@@ -105,6 +105,7 @@ PciDevBase::PciDevBase(uint64_t d_bdf, cfg_space_type cfg_len, pci_dev_type dev_
     bus_(d_bdf >> 16 & 0xff),
     dev_(d_bdf >> 8 & 0xff),
     func_(d_bdf & 0xff),
+    dev_id_(d_bdf),
     ids_names_(IDS_TYPES_CNT),
     dev_id_str_(std::format("[{:02x}:{:02x}.{:x}]", bus_, dev_, func_)),
     is_pcie_(false),

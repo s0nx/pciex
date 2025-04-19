@@ -199,10 +199,11 @@ class PCITopoUIComp : public ftxui::ComponentBase
 {
 public:
     PCITopoUIComp() = delete;
-    PCITopoUIComp(int width, int height, const pci::PCITopologyCtx &ctx) :
+    PCITopoUIComp(int width, int height, const pci::PCITopologyCtx &ctx,
+                  ElemReprMode draw_mode) :
         ftxui::ComponentBase(),
         topo_ctx_(ctx),
-        current_drawing_mode_(ElemReprMode::Compact),
+        current_drawing_mode_(draw_mode),
         block_map_(),
         canvas_(width, height)
     {
@@ -243,9 +244,10 @@ private:
     void SwitchDrawingMode(ElemReprMode);
 };
 
-inline auto MakeTopologyComp(int width, int height, const pci::PCITopologyCtx &ctx)
+inline auto MakeTopologyComp(int width, int height, const pci::PCITopologyCtx &ctx,
+                             ElemReprMode draw_mode)
 {
-    return ftxui::Make<PCITopoUIComp>(width, height, ctx);
+    return ftxui::Make<PCITopoUIComp>(width, height, ctx, draw_mode);
 }
 
 std::pair<uint16_t, uint16_t>
@@ -282,6 +284,8 @@ private:
 };
 
 
+using RegHighlightState = std::vector<uint8_t>;
+
 // Holds resizable split component representing currently selected device.
 // ┌───────────────────────────┐
 // │ device registers overview │
@@ -295,9 +299,12 @@ struct PCIRegsComponent : ftxui::ComponentBase
     ftxui::Component                 upper_split_comp_;
     ftxui::Component                 lower_split_comp_;
     ftxui::Component                 split_comp_;
-    std::vector<uint8_t>             vis_state_;
+    RegHighlightState                vis_state_;
     int                              split_off_ {40};
     uint32_t                         interactive_elem_max_ {1024};
+
+    std::unordered_map<uint64_t, RegHighlightState> vis_state_map_;
+    std::unordered_map<uint64_t, ftxui::Component> comp_map_;
 
     ftxui::Element OnRender() override;
     bool Focusable() const final { return true; }

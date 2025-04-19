@@ -99,6 +99,9 @@ struct PciDevBase
     uint8_t         dev_;
     uint8_t         func_;
 
+    // DBDF
+    uint64_t        dev_id_;
+
     std::vector<std::string_view> ids_names_;
 
     std::string     dev_id_str_;

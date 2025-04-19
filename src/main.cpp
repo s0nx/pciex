@@ -13,6 +13,7 @@
 #include <ftxui/component/screen_interactive.hpp>
 
 cfg::CmdLOpts    cmdline_options;
+cfg::PCIexCfg    pciex_cfg;
 vm::VmallocStats vm_info;
 Logger           logger;
 
@@ -23,6 +24,8 @@ int main(int argc, char *argv[])
 {
     try {
         cfg::ParseCmdLineOptions(cmdline_options, argc, argv);
+
+        cfg::ParseConfig(pciex_cfg);
 
         logger.init();
 

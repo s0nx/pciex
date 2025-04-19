@@ -47,10 +47,16 @@ More information: [kptr_restrict](https://docs.kernel.org/admin-guide/sysctl/ker
 
 Help window can be accessed at any time by pressing `?` key.
 
+## Configuration
+_pciex_ can be configured by editing _/etc/pciex/config.json_ file.  
+An example configuration file is located in __cfg/__ folder.  
+Options are not documented yet, but there are some comments in __src/config.h__
+
 ## References
 The following libraries are used by this tool:
  * UI is built using [FTXUI](https://github.com/ArthurSonzogni/FTXUI)
  * [CLI11](https://github.com/CLIUtils/CLI11) - command line parsing
+ * [glaze](https://github.com/stephenberry/glaze) - json parsing/reflection
 
 ## Misc
 ### Generating compilation database

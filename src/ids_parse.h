@@ -30,8 +30,6 @@ struct CachedDbVendorEntry
     }
 };
 
-constexpr char pci_ids_db_path[] { "/usr/share/hwdata/pci.ids" };
-
 //                 class name,       subclass name,    programming interface
 typedef std::tuple<std::string_view, std::string_view, std::string_view> ClassCodeInfo;
 
