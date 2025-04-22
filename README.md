@@ -1,4 +1,5 @@
-![screenshot2](https://github.com/user-attachments/assets/77084ede-db82-49ee-8f02-c19f53404eb3)
+![pciex_demo](https://github.com/user-attachments/assets/2bb17a1d-37d1-4113-ae43-81a93e59dd29)
+
 
 # pciex
 terminal-based PCI topology explorer for Linux
@@ -62,7 +63,11 @@ The following libraries are used by this tool:
 ### Generating compilation database
 Add `-DCMAKE_EXPORT_COMPILE_COMMANDS=1` during `cmake` invocation to generate `compile_commands.json`
 ### Logging
-By default, logs are written to `/tmp/pciex/logs/`
+Logging is disabled by default. It can be enabled by modifying configuration json.  
+Logs are written to `/tmp/pciex/logs/`
+### Examples
+An example topology snapshot ( __examples/test_snapshot__ ) can be used to explore the tool.
+
 ### Project state
 This project is in early development phase. Some features are still being worked on.  
 Several PCI capabilities have not been implemented yet.
