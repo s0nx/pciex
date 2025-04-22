@@ -9,13 +9,17 @@
 
 namespace ui {
 
-// XXX: This is essentialy the same as ftxui::ButtonBase with the only
-// difference of being able to track pressed/released state the same way ftxui::Checkbox does.
+// XXX: This is essentialy the same as ftxui::ButtonBase with the couple of differences:
+// - it can track pressed/released state the same way ftxui::Checkbox does.
+// - it can be switched on and off externally by modifying @ena_flag_ flag
 // TODO: merge to mainline
 class PushPullButton : public ftxui::ComponentBase, public ftxui::ButtonOption
 {
 public:
-    explicit PushPullButton(ButtonOption option) : ButtonOption(std::move(option)) {}
+    explicit PushPullButton(ButtonOption option, uint8_t *on_click)
+        : ButtonOption(std::move(option)),
+          ena_flag_(on_click)
+    {}
 
     ftxui::Element OnRender() override;
 
@@ -30,6 +34,7 @@ public:
 private:
     bool is_pressed_ = false;
     bool mouse_hover_ = false;
+    uint8_t *ena_flag_;
     ftxui::Box box_;
     ftxui::ButtonOption option_;
     float animation_background_ = 0;

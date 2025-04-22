@@ -323,6 +323,7 @@ struct PCIRegsComponent : ftxui::ComponentBase
 
     bool CurDevHaveRegsHighlighted();
     void UpdateSelectedDev(std::shared_ptr<pci::PciDevBase> selected_dev) { newly_selected_dev_ = selected_dev; }
+    void ResetRegsVisibilityState() { std::ranges::fill(vis_state_, 0); }
 };
 
 // Wrapper to draw border around component on hover/select.

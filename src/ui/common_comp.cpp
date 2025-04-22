@@ -30,6 +30,9 @@ Element PushPullButton::OnRender()
                       active ? ftxui::select :
                       ftxui::nothing;
 
+    if (ena_flag_ != nullptr)
+        is_pressed_ = (*ena_flag_ == 1);
+
     const EntryState state = {
         *label,
         is_pressed_,
@@ -145,27 +148,21 @@ static ButtonOption RegButtonDefaultOption() {
 }
 
 static Component
-PPButton(ConstStringRef label, std::function<void()> on_click,
-         ButtonOption option)
+PPButton(ConstStringRef label, uint8_t *on_click, ButtonOption option)
 {
   option.label = label;
-  option.on_click = std::move(on_click);
-  return Make<PushPullButton>(std::move(option));
+  if (on_click == nullptr)
+      option.on_click = [] {};
+  else
+      option.on_click = [on_click] { *on_click = *on_click ? false : true; };
+
+  return Make<PushPullButton>(std::move(option), on_click);
 }
 
 Component RegButtonComp(std::string label, uint8_t *on_click)
 {
-    if (on_click == nullptr)
-        return PPButton(label, [] {}, ui::RegButtonDefaultOption());
-    else
-        return PPButton(label, [on_click] { *on_click = *on_click ? false : true; },
-                        ui::RegButtonDefaultOption());
+    return PPButton(label, on_click, ui::RegButtonDefaultOption());
 }
-
-
-
-
-
 
 ////////////////////////
 

@@ -500,6 +500,9 @@ bool PCITopoUIComp::OnEvent(Event event)
                                             false);
             regs_comp_->UpdateSelectedDev(block_map_.selected_dev_iter_->second->dev_);
             break;
+        case 'r':
+            regs_comp_->ResetRegsVisibilityState();
+            break;
         default:
             break;
         }
@@ -1055,6 +1058,8 @@ static Element GetHelpElem()
     R"( Other hotkeys:                                               )",
     R"(      c/v - device tree pane compact/verbose                  )",
     R"(            drawing mode switch                               )",
+    R"(        r - reset highlighted registers for the currently     )",
+    R"(            selected device                                   )",
     R"(        ? - help open                                         )",
     R"(  ?/Esc/q - help close                                        )",
     R"(                                                              )"
