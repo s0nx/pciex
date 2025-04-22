@@ -10,7 +10,9 @@
 #include "pciex_version.h"
 
 #include <algorithm>
+#include <numeric>
 #include <format>
+#include <ranges>
 
 extern cfg::PCIexCfg pciex_cfg;
 extern Logger logger;
@@ -122,7 +124,7 @@ void CanvasElemConnector::Draw(ScrollableCanvas &canvas)
 
 CanvasElemPCIDev::CanvasElemPCIDev(std::shared_ptr<pci::PciDevBase> dev, ElemReprMode repr_mode,
                                    uint16_t x, uint16_t y)
-    : dev_(dev), selected_(false)
+    : dev_(dev), selected_(false), has_highlighted_regs_(false)
 {
     size_t max_hlen, max_vlen;
 
@@ -189,18 +191,25 @@ ShapeDesc CanvasElemPCIDev::GetShapeDesc() noexcept
 void CanvasElemPCIDev::Draw(ScrollableCanvas &canvas)
 {
     // draw box
-    if (selected_)
+    if (selected_) {
         canvas.DrawBoxLine(points_, [](Pixel &p) {
             p.foreground_color = Color::Palette256::Orange1;
             p.bold = true;
         });
-    else
+    } else if (has_highlighted_regs_) {
+        canvas.DrawBoxLine(points_, [](Pixel &p) {
+            p.foreground_color = Color::Cyan;
+            p.bold = false;
+        });
+    } else {
         // to remove element highlight, 'inverse' highlight style has to
         // be explicitly specified
         canvas.DrawBoxLine(points_, [](Pixel &p) {
             p.foreground_color = Color::Default;
             p.bold = false;
         });
+
+    }
 
     // draw text
     auto x1 = std::get<0>(points_);
@@ -292,7 +301,7 @@ bool CanvasDevBlockMap::Insert(std::shared_ptr<CanvasElemPCIDev> dev)
 }
 
 void CanvasDevBlockMap::SelectDeviceByPos(const uint16_t mouse_x, const uint16_t mouse_y,
-                                     ScrollableCanvas &canvas)
+                                     ScrollableCanvas &canvas, bool highlighted_regs)
 {
     auto y_iter = blocks_y_dim_.lower_bound({mouse_y * 4, 0});
     y_iter--;
@@ -305,6 +314,7 @@ void CanvasDevBlockMap::SelectDeviceByPos(const uint16_t mouse_x, const uint16_t
         if (x_in_pixels >= x && x_in_pixels <= x + len) {
             if (selected_dev_iter_ != y_iter) {
                 selected_dev_iter_->second->selected_ = false;
+                selected_dev_iter_->second->has_highlighted_regs_ = highlighted_regs;
                 // redraw previously selected element since it's not selected now
                 selected_dev_iter_->second->Draw(canvas);
 
@@ -318,12 +328,15 @@ void CanvasDevBlockMap::SelectDeviceByPos(const uint16_t mouse_x, const uint16_t
     }
 }
 
-void CanvasDevBlockMap::SelectNextPrevDevice(ScrollableCanvas &canvas, bool select_next)
+void CanvasDevBlockMap::SelectNextPrevDevice(ScrollableCanvas &canvas,
+                                             bool highlighted_regs,
+                                             bool select_next)
 {
     if (select_next) { // move selector to next device
         auto it_next = std::next(selected_dev_iter_);
         if (it_next != blocks_y_dim_.end()) {
             selected_dev_iter_->second->selected_ = false;
+            selected_dev_iter_->second->has_highlighted_regs_ = highlighted_regs;
             selected_dev_iter_->second->Draw(canvas);
 
             selected_dev_iter_ = it_next;
@@ -333,12 +346,24 @@ void CanvasDevBlockMap::SelectNextPrevDevice(ScrollableCanvas &canvas, bool sele
     } else { // move selector to previous device
         if (selected_dev_iter_ != blocks_y_dim_.begin()) {
             selected_dev_iter_->second->selected_ = false;
+            selected_dev_iter_->second->has_highlighted_regs_ = highlighted_regs;
             selected_dev_iter_->second->Draw(canvas);
 
             selected_dev_iter_--;
+
             selected_dev_iter_->second->selected_ = true;
             selected_dev_iter_->second->Draw(canvas);
         }
+    }
+}
+
+// Restore highlighing state for all the devices.
+void CanvasDevBlockMap::ReapplyHighlight()
+{
+    if (!regs_highlighted_elems_.empty()) {
+        assert(blocks_y_dim_.size() == regs_highlighted_elems_.size());
+        for (int i = 0; auto block_elem : blocks_y_dim_)
+            block_elem.second->has_highlighted_regs_ = regs_highlighted_elems_[i++];
     }
 }
 
@@ -346,6 +371,12 @@ void CanvasDevBlockMap::Reset()
 {
     // temporarily preserve currently selected device
     selected_dev_ = selected_dev_iter_->second;
+
+    // Preserve devices highlight state on drawing mode switch
+    regs_highlighted_elems_.clear();
+    for (const auto &c_elem : std::views::values(blocks_y_dim_))
+        regs_highlighted_elems_.push_back(c_elem->has_highlighted_regs_);
+
     blocks_y_dim_.clear();
 }
 
@@ -420,10 +451,14 @@ bool PCITopoUIComp::OnEvent(Event event)
                 area->shift(UiElemShiftDir::UP, box_);
         }
 
-        if (event.mouse().button == Mouse::Left)
+        if (event.mouse().button == Mouse::Left) {
             block_map_.SelectDeviceByPos(event.mouse().x + area->off_x_,
                                          event.mouse().y + area->off_y_,
-                                         canvas_);
+                                         canvas_,
+                                         regs_comp_->CurDevHaveRegsHighlighted());
+            // update state of PCIRegsComponent
+            regs_comp_->UpdateSelectedDev(block_map_.selected_dev_iter_->second->dev_);
+        }
 
         return true;
     }
@@ -454,10 +489,16 @@ bool PCITopoUIComp::OnEvent(Event event)
             break;
         // select next/prev device via 'j'/'k' + shift
         case 'J':
-            block_map_.SelectNextPrevDevice(canvas_, true);
+            block_map_.SelectNextPrevDevice(canvas_,
+                                            regs_comp_->CurDevHaveRegsHighlighted(),
+                                            true);
+            regs_comp_->UpdateSelectedDev(block_map_.selected_dev_iter_->second->dev_);
             break;
         case 'K':
-            block_map_.SelectNextPrevDevice(canvas_, false);
+            block_map_.SelectNextPrevDevice(canvas_,
+                                            regs_comp_->CurDevHaveRegsHighlighted(),
+                                            false);
+            regs_comp_->UpdateSelectedDev(block_map_.selected_dev_iter_->second->dev_);
             break;
         default:
             break;
@@ -492,12 +533,18 @@ bool PCITopoUIComp::OnEvent(Event event)
 
     // select next/prev device via Ctrl + 'Up'/'Down'
     if (event == Event::ArrowUpCtrl) {
-        block_map_.SelectNextPrevDevice(canvas_, false);
+        block_map_.SelectNextPrevDevice(canvas_,
+                                        regs_comp_->CurDevHaveRegsHighlighted(),
+                                        false);
+        regs_comp_->UpdateSelectedDev(block_map_.selected_dev_iter_->second->dev_);
         return true;
     }
 
     if (event == Event::ArrowDownCtrl) {
-        block_map_.SelectNextPrevDevice(canvas_, true);
+        block_map_.SelectNextPrevDevice(canvas_,
+                                        regs_comp_->CurDevHaveRegsHighlighted(),
+                                        true);
+        regs_comp_->UpdateSelectedDev(block_map_.selected_dev_iter_->second->dev_);
         return true;
     }
 
@@ -527,6 +574,9 @@ void PCITopoUIComp::AddTopologyElements()
     if (block_map_.selected_dev_iter_ == block_map_.blocks_y_dim_.end()) {
         block_map_.selected_dev_iter_ = block_map_.blocks_y_dim_.begin();
         block_map_.selected_dev_iter_->second->selected_ = true;
+
+        // update state of PCIRegsComponent
+        regs_comp_->UpdateSelectedDev(block_map_.selected_dev_iter_->second->dev_);
     } else {
         auto cur_dev = block_map_.selected_dev_->dev_;
         for (auto it = block_map_.blocks_y_dim_.begin();
@@ -534,12 +584,15 @@ void PCITopoUIComp::AddTopologyElements()
             if (it->second->dev_ == cur_dev) {
                 block_map_.selected_dev_iter_ = it;
                 block_map_.selected_dev_iter_->second->selected_ = true;
+                regs_comp_->UpdateSelectedDev(
+                        block_map_.selected_dev_iter_->second->dev_);
                 break;
             }
         }
 
     }
 
+    block_map_.ReapplyHighlight();
     DrawElements();
 }
 
@@ -735,19 +788,30 @@ static Component MakeScrollableComp(Component child)
 
 Element PCIRegsComponent::OnRender()
 {
-    auto selected_device = topology_component_->GetSelectedDev();
-    if (cur_dev_ == selected_device) {
+    if (cur_dev_ == newly_selected_dev_) {
         return ComponentBase::Render();
     } else {
         bool should_preserve_vis_state {pciex_cfg.tui.keep_dev_selected_regs};
-        if (should_preserve_vis_state && cur_dev_) {
-            vis_state_map_.insert_or_assign(cur_dev_->dev_id_,
-                                            std::move(vis_state_));
-            comp_map_.insert_or_assign(cur_dev_->dev_id_,
-                                       split_comp_);
+        if (should_preserve_vis_state) {
+            // So at this stage the switch to a new device on the left canvas pane
+            // has alredy happened and now we have to update the right pane components.
+            // @cur_dev_ still points to the previously selected device
+            // or nullptr(right after the start only)
+
+            // In order to preserve opened register detailed info on device switch
+            // we need to save both the split component itself (@split_comp_)
+            // and @vis_state_ vector. Visibility flag location within @vis_state_
+            // is determined during the component creation and expected
+            // not to be changed. (see GetCompMaybe for example)
+            if (cur_dev_) {
+                vis_state_map_.insert_or_assign(cur_dev_->dev_id_,
+                                                std::move(vis_state_));
+                comp_map_.insert_or_assign(cur_dev_->dev_id_,
+                                           split_comp_);
+            }
         }
 
-        cur_dev_ = selected_device;
+        cur_dev_ = newly_selected_dev_;
         DetachAllChildren();
 
         vis_state_.clear();
@@ -755,7 +819,7 @@ Element PCIRegsComponent::OnRender()
         // so reserve some space in advance
         vis_state_.reserve(interactive_elem_max_);
 
-        if (should_preserve_vis_state && cur_dev_) {
+        if (should_preserve_vis_state) {
             // try to obtain previous highlighting state for the newly
             // selected device
             auto vis_state_iter = vis_state_map_.find(cur_dev_->dev_id_);
@@ -776,13 +840,6 @@ Element PCIRegsComponent::OnRender()
 
         return ComponentBase::Render();
     }
-}
-
-std::string PCIRegsComponent::PrintCurDevInfo() noexcept
-{
-    auto selected_device = topology_component_->GetSelectedDev();
-
-    return selected_device->dev_id_str_;
 }
 
 // Create type0/type1 configuration space header
@@ -884,6 +941,17 @@ void PCIRegsComponent::FinalizeComponent()
         return false;
     });
 
+}
+
+// Check @vis_state_ to see if any regs have their detailed info displayed
+bool PCIRegsComponent::CurDevHaveRegsHighlighted()
+{
+    if (!pciex_cfg.tui.keep_dev_selected_regs)
+        return false;
+
+    // This should works fast enough considering the size of @vis_state_.
+    auto res = std::accumulate(vis_state_.begin(), vis_state_.end(), 0);
+    return res > 0;
 }
 
 Element BorderedHoverComp::OnRender()
@@ -1053,13 +1121,19 @@ ScreenCompCtx::ScreenCompCtx(const pci::PCITopologyCtx &topo_ctx) :
 Component
 ScreenCompCtx::Create()
 {
+    // right split pane
+    pci_regs_comp_ = std::make_shared<PCIRegsComponent>();
+
     auto draw_mode = pciex_cfg.tui.dt_dflt_draw_verbose ?
                      ElemReprMode::Verbose : ElemReprMode::Compact;
     auto [width, height] = GetCanvasSizeEstimate(topo_ctx_, draw_mode);
-    topo_canvas_ = MakeTopologyComp(width, height, topo_ctx_, draw_mode);
+    // left canvas pane
+    topo_canvas_ = std::make_shared<PCITopoUIComp>(width, height,
+                                                  topo_ctx_,
+                                                  pci_regs_comp_,
+                                                  draw_mode);
     topo_canvas_comp_ = MakeBorderedHoverComp(topo_canvas_);
 
-    pci_regs_comp_ = std::make_shared<PCIRegsComponent>(topo_canvas_);
 
     auto main_comp_split_ = ResizableSplit({
         .main = topo_canvas_comp_,

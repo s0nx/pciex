@@ -103,13 +103,15 @@ struct CanvasElemConnector : public CanvasElementBase
     void Draw(ScrollableCanvas &canvas) override;
 };
 
-// PCI device element
+// Descriptor of PCI device on canvas
 struct CanvasElemPCIDev : public CanvasElementBase
 {
     std::shared_ptr<pci::PciDevBase> dev_;
     std::vector<std::string>         text_data_;
     ShapeDesc                        points_;
     bool                             selected_ {false};
+
+    bool                             has_highlighted_regs_ {false};
 
     CanvasElemPCIDev() = delete;
     CanvasElemPCIDev(std::shared_ptr<pci::PciDevBase> dev, ElemReprMode repr_mode,
@@ -181,28 +183,42 @@ typedef CanvasSnglDimBlockMap::iterator BlockMapIter;
 struct CanvasDevBlockMap
 {
     CanvasSnglDimBlockMap             blocks_y_dim_;
-    std::shared_ptr<CanvasElemPCIDev> selected_dev_;
+    std::shared_ptr<CanvasElemPCIDev> selected_dev_ {nullptr};
+    // currently selected device map iterator
     BlockMapIter                      selected_dev_iter_;
+
+    std::vector<bool> regs_highlighted_elems_;
 
     CanvasDevBlockMap() : selected_dev_iter_(blocks_y_dim_.end()) {}
 
     bool Insert(std::shared_ptr<CanvasElemPCIDev> dev);
     void SelectDeviceByPos(const uint16_t mouse_x, const uint16_t mouse_y,
-                           ScrollableCanvas &canvas);
-    void SelectNextPrevDevice(ScrollableCanvas &canvas, bool select_next);
+                           ScrollableCanvas &canvas, bool highlighted_regs);
+    void SelectNextPrevDevice(ScrollableCanvas &canvas, bool highlighted_regs,
+                              bool select_next);
+    void ReapplyHighlight();
     void Reset();
 };
 
 constexpr uint16_t child_elem_xoff = 16;
 
+struct PCIRegsComponent;
+
+// Represents device topology tree component on canvas
+//
+// Even though this object and @PCIRegsComponent are both just components,
+// this one acts as a leader because it's a primary device selector.
+// It processes mouse/keyboard events and updates @regs_comp_ state.
 class PCITopoUIComp : public ftxui::ComponentBase
 {
 public:
     PCITopoUIComp() = delete;
     PCITopoUIComp(int width, int height, const pci::PCITopologyCtx &ctx,
+                  std::shared_ptr<PCIRegsComponent> rcomp,
                   ElemReprMode draw_mode) :
         ftxui::ComponentBase(),
         topo_ctx_(ctx),
+        regs_comp_(rcomp),
         current_drawing_mode_(draw_mode),
         block_map_(),
         canvas_(width, height)
@@ -214,17 +230,12 @@ public:
 
     bool OnEvent(ftxui::Event event) override final;
     bool Focusable() const final { return true; }
-    std::shared_ptr<pci::PciDevBase> GetSelectedDev() noexcept
-    {
-        if (block_map_.selected_dev_iter_ == block_map_.blocks_y_dim_.end())
-            return nullptr;
-        return block_map_.selected_dev_iter_->second->dev_;
-    }
 
 private:
     std::vector<std::shared_ptr<CanvasElementBase>> canvas_elems_;
     int                                             max_width_ {0};
     const pci::PCITopologyCtx                       &topo_ctx_;
+    std::shared_ptr<PCIRegsComponent>               regs_comp_;
     ElemReprMode                                    current_drawing_mode_;
     CanvasDevBlockMap                               block_map_;
     bool                                            hovered_ { false };
@@ -243,12 +254,6 @@ private:
                        uint16_t x_off, uint16_t *y_off);
     void SwitchDrawingMode(ElemReprMode);
 };
-
-inline auto MakeTopologyComp(int width, int height, const pci::PCITopologyCtx &ctx,
-                             ElemReprMode draw_mode)
-{
-    return ftxui::Make<PCITopoUIComp>(width, height, ctx, draw_mode);
-}
 
 std::pair<uint16_t, uint16_t>
 GetCanvasSizeEstimate(const pci::PCITopologyCtx &ctx, ElemReprMode mode) noexcept;
@@ -294,7 +299,7 @@ using RegHighlightState = std::vector<uint8_t>;
 // └───────────────────────────┘
 struct PCIRegsComponent : ftxui::ComponentBase
 {
-    std::shared_ptr<PCITopoUIComp>   topology_component_;
+    std::shared_ptr<pci::PciDevBase> newly_selected_dev_;
     std::shared_ptr<pci::PciDevBase> cur_dev_;
     ftxui::Component                 upper_split_comp_;
     ftxui::Component                 lower_split_comp_;
@@ -309,17 +314,15 @@ struct PCIRegsComponent : ftxui::ComponentBase
     ftxui::Element OnRender() override;
     bool Focusable() const final { return true; }
 
-    PCIRegsComponent(std::shared_ptr<PCITopoUIComp> topo_comp)
-        : ftxui::ComponentBase(), topology_component_(topo_comp) {}
-
-    // XXX DEBUG
-    std::string PrintCurDevInfo() noexcept;
+    PCIRegsComponent() : ftxui::ComponentBase() {}
 
     void CreateComponent();
     void FinalizeComponent();
     void AddCompatHeaderRegs();
     void AddCapabilities();
 
+    bool CurDevHaveRegsHighlighted();
+    void UpdateSelectedDev(std::shared_ptr<pci::PciDevBase> selected_dev) { newly_selected_dev_ = selected_dev; }
 };
 
 // Wrapper to draw border around component on hover/select.
@@ -359,7 +362,7 @@ private:
   std::shared_ptr<PCITopoUIComp>    topo_canvas_;
   ftxui::Component                  topo_canvas_comp_;
   ftxui::Component                  main_comp_split_;
-  ftxui::Component                  pci_regs_comp_;
+  std::shared_ptr<PCIRegsComponent> pci_regs_comp_;
 
   int                               vert_split_off_;
   bool                              show_help_;

@@ -61,7 +61,7 @@ struct PCIexTUICfg
 
     // Highlighted device registers would be preserved on device switch.
     // When switching back to this device, registers highlighting state would be restored.
-    bool keep_dev_selected_regs {false};
+    bool keep_dev_selected_regs {true};
 };
 
 struct PCIexCfg
