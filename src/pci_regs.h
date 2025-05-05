@@ -1704,3 +1704,198 @@ struct PASIDCap
     RegPASIDControl    pasid_ctl; // 0x6
 } __attribute__((packed));
 static_assert(sizeof(PASIDCap) == 0x8);
+
+struct RegAERUncorrStatus
+{
+    uint32_t rsvd                               : 4;
+    uint32_t dlink_prot_err_status              : 1;
+    uint32_t supr_down_err_status               : 1;
+    uint32_t rsvd1                              : 6;
+    uint32_t poisoned_tlp_recv_status           : 1;
+    uint32_t flow_ctl_proto_err_status          : 1;
+    uint32_t comp_tmo_status                    : 1;
+    uint32_t compl_abort_status                 : 1;
+    uint32_t unexp_comp_status                  : 1;
+    uint32_t recv_overflow_status               : 1;
+    uint32_t malformed_tlp_status               : 1;
+    uint32_t ecrc_err_status                    : 1;
+    uint32_t unsupp_req_err_status              : 1;
+    uint32_t acs_violation_status               : 1;
+    uint32_t uncorr_internal_err_status         : 1;
+    uint32_t mc_blocked_tlp_status              : 1;
+    uint32_t atomic_op_egress_blocked_status    : 1;
+    uint32_t tlp_pref_blocked_err_status        : 1;
+    uint32_t poisoned_tlp_egress_blocked_status : 1;
+    uint32_t rsvd2                              : 5;
+} __attribute__((packed));
+static_assert(sizeof(RegAERUncorrStatus) == 4);
+
+struct RegAERUncorrMask
+{
+    uint32_t rsvd                             : 4;
+    uint32_t dlink_prot_err_mask              : 1;
+    uint32_t supr_down_err_mask               : 1;
+    uint32_t rsvd1                            : 6;
+    uint32_t poisoned_tlp_recv_mask           : 1;
+    uint32_t flow_ctl_proto_err_mask          : 1;
+    uint32_t comp_tmo_mask                    : 1;
+    uint32_t compl_abort_mask                 : 1;
+    uint32_t unexp_comp_mask                  : 1;
+    uint32_t recv_overflow_mask               : 1;
+    uint32_t malformed_tlp_mask               : 1;
+    uint32_t ecrc_err_mask                    : 1;
+    uint32_t unsupp_req_err_mask              : 1;
+    uint32_t acs_violation_mask               : 1;
+    uint32_t uncorr_internal_err_mask         : 1;
+    uint32_t mc_blocked_tlp_mask              : 1;
+    uint32_t atomic_op_egress_blocked_mask    : 1;
+    uint32_t tlp_pref_blocked_err_mask        : 1;
+    uint32_t poisoned_tlp_egress_blocked_mask : 1;
+    uint32_t rsvd2                            : 5;
+} __attribute__((packed));
+static_assert(sizeof(RegAERUncorrMask) == 4);
+
+struct RegAERUncorrSeverity
+{
+    uint32_t rsvd                            : 4;
+    uint32_t dlink_prot_err_sev              : 1;
+    uint32_t supr_down_err_sev               : 1;
+    uint32_t rsvd1                           : 6;
+    uint32_t poisoned_tlp_recv_sev           : 1;
+    uint32_t flow_ctl_proto_err_sev          : 1;
+    uint32_t comp_tmo_sev                    : 1;
+    uint32_t compl_abort_sev                 : 1;
+    uint32_t unexp_comp_sev                  : 1;
+    uint32_t recv_overflow_sev               : 1;
+    uint32_t malformed_tlp_sev               : 1;
+    uint32_t ecrc_err_sev                    : 1;
+    uint32_t unsupp_req_err_sev              : 1;
+    uint32_t acs_violation_sev               : 1;
+    uint32_t uncorr_internal_err_sev         : 1;
+    uint32_t mc_blocked_tlp_sev              : 1;
+    uint32_t atomic_op_egress_blocked_sev    : 1;
+    uint32_t tlp_pref_blocked_err_sev        : 1;
+    uint32_t poisoned_tlp_egress_blocked_sev : 1;
+    uint32_t rsvd2                           : 5;
+} __attribute__((packed));
+static_assert(sizeof(RegAERUncorrSeverity) == 4);
+
+struct RegAERCorrStatus
+{
+    uint16_t recv_err_status : 1;
+    uint16_t rsvd : 5;
+    uint16_t bad_tlp_status : 1;
+    uint16_t bad_dllp_status : 1;
+    uint16_t repl_num_rollover_status : 1;
+    uint16_t rsvd1 : 3;
+    uint16_t repl_tmr_tmo_status : 1;
+    uint16_t adv_non_fatal_err_status : 1;
+    uint16_t corr_int_err_status : 1;
+    uint16_t hdr_log_overflow_status : 1;
+    uint16_t rsvd2;
+} __attribute__((packed));
+static_assert(sizeof(RegAERCorrStatus) == 4);
+
+struct RegAERCorrMask
+{
+    uint16_t recv_err_mask : 1;
+    uint16_t rsvd : 5;
+    uint16_t bad_tlp_mask : 1;
+    uint16_t bad_dllp_mask : 1;
+    uint16_t repl_num_rollover_mask : 1;
+    uint16_t rsvd1 : 3;
+    uint16_t repl_tmr_tmo_mask : 1;
+    uint16_t adv_non_fatal_err_mask : 1;
+    uint16_t corr_int_err_mask : 1;
+    uint16_t hdr_log_overflow_mask : 1;
+    uint16_t rsvd2;
+} __attribute__((packed));
+static_assert(sizeof(RegAERCorrMask) == 4);
+
+struct RegAERAecCtl
+{
+    uint32_t first_err_ptr : 5;
+    uint32_t ecrc_gen_cap : 1;
+    uint32_t ecrc_gen_ena : 1;
+    uint32_t ecrc_check_cap : 1;
+    uint32_t ecrc_check_ena : 1;
+    uint32_t multi_hdr_rec_cap : 1;
+    uint32_t multi_hdr_rec_ena : 1;
+    uint32_t tlp_pref_log_present : 1;
+    uint32_t comp_tmo_pref_hdr_log_cap : 1;
+    uint32_t rsvd : 19;
+} __attribute__((packed));
+static_assert(sizeof(RegAERAecCtl) == 4);
+
+struct RegAERHdrLog
+{
+    uint32_t dw[4];
+} __attribute__((packed));
+static_assert(sizeof(RegAERHdrLog) == 0x10);
+
+struct RegAERRootErrCmd
+{
+    uint32_t fatal_err_rep_ena : 1;
+    uint32_t non_fatal_err_rep_ena : 1;
+    uint32_t corr_err_rep_ena : 1;
+    uint32_t rsvd : 29;
+} __attribute__((packed));
+static_assert(sizeof(RegAERRootErrCmd) == 0x4);
+
+struct RegAERRootErrStatus
+{
+    uint32_t err_cor_recv : 1;
+    uint32_t multi_err_cor_recv : 1;
+    uint32_t err_fatal_nonfatal_recv : 1;
+    uint32_t multi_err_fatal_nonfatal_recv : 1;
+    uint32_t first_uncorr_fatal : 1;
+    uint32_t nonfatal_err_msg_recv : 1;
+    uint32_t fatal_err_msg_recv : 1;
+    uint32_t rsvd : 20;
+    uint32_t adv_err_int_msg_num : 5;
+} __attribute__((packed));
+static_assert(sizeof(RegAERRootErrStatus) == 0x4);
+
+struct RegAERCorrErrSrcID
+{
+    uint16_t req_id;
+} __attribute__((packed));
+static_assert(sizeof(RegAERCorrErrSrcID) == 0x2);
+
+struct RegAERErrSrcID
+{
+    uint16_t req_id;
+} __attribute__((packed));
+static_assert(sizeof(RegAERErrSrcID) == 0x2);
+
+struct RegAERTlpPrefixLog
+{
+    uint32_t dw[4];
+} __attribute__((packed));
+static_assert(sizeof(RegAERTlpPrefixLog) == 0x10);
+
+struct AERCap
+{
+    ExtCapHdr                        hdr; // 0x0
+    RegAERUncorrStatus uncorr_err_status; // 0x4
+    RegAERUncorrMask     uncorr_err_mask; // 0x8
+    RegAERUncorrSeverity  uncorr_err_sev; // 0xc
+    RegAERCorrStatus     corr_err_status; // 0x10
+    RegAERCorrMask         corr_err_mask; // 0x14
+    RegAERAecCtl         adv_err_cap_ctl; // 0x18
+    RegAERHdrLog                 hdr_log; // 0x1c
+    RegAERRootErrCmd        root_err_cmd; // 0x2c
+    RegAERRootErrStatus  root_err_status; // 0x30
+    RegAERCorrErrSrcID   corr_err_src_id; // 0x34
+    RegAERErrSrcID            err_src_id; // 0x36
+    RegAERTlpPrefixLog      tlp_pref_log; // 0x38
+} __attribute__((packed));
+static_assert(sizeof(AERCap) == 0x48);
+
+
+
+
+
+
+
+
