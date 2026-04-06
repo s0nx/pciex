@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
     try {
         cfg::ParseCmdLineOptions(cmdline_options, argc, argv);
 
-        cfg::ParseConfig(pciex_cfg);
+        cfg::ParseConfig(pciex_cfg, cmdline_options.cfg_file_path_);
 
         logger.init();
 

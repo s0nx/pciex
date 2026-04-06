@@ -35,6 +35,7 @@ struct CmdLOpts
 {
     OperationMode mode_ {OperationMode::Live};
     std::string   snapshot_path_;
+    std::string   cfg_file_path_ {"/etc/pciex/config.json"};
 
     void Dump();
 };
@@ -72,7 +73,7 @@ struct PCIexCfg
 
 // XXX: when adding new parameters to PCIexCfg don't forget to
 // check if explicit validation is needed
-void ParseConfig(PCIexCfg &cfg);
+void ParseConfig(PCIexCfg &cfg, std::string_view cfg_file_path);
 
 } // namespace cfg
 

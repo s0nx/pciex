@@ -85,6 +85,12 @@ void ParseCmdLineOptions(CmdLOpts &cmdl_opts, int argc, char *argv[])
 
     sgrp->add_flag("-l,--live", "examine PCI topology");
 
+    app.add_option("-f,--config-file",
+            cmdl_opts.cfg_file_path_,
+            "path to JSON configuration file")
+        ->option_text("< path/to/config.json >")
+        ->check(CLI::Validator(CLI::ExistingFile, {}));
+
     app.add_flag("-v, --version",
             [](std::int64_t) {
                 std::print("{} {}\n", pciex_current_version, pciex_current_hash);
@@ -162,9 +168,7 @@ static bool ConfigIsValid(const PCIexCfg &cfg)
     return true;
 }
 
-constexpr std::string_view cfg_file_path { "/etc/pciex/config.json" };
-
-void ParseConfig(PCIexCfg &cfg)
+void ParseConfig(PCIexCfg &cfg, std::string_view cfg_file_path)
 {
     std::filesystem::directory_entry cfg_dir_e {cfg_file_path};
     if (!cfg_dir_e.exists()) {
