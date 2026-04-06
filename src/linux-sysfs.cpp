@@ -7,6 +7,8 @@
 #include <fstream>
 #include <format>
 
+#include <unistd.h>
+
 extern Logger logger;
 
 namespace sysfs {
@@ -74,13 +76,16 @@ using cfg_space_desc = std::pair<std::unique_ptr<uint8_t []>, uint32_t>;
 static cfg_space_desc GetCfgSpaceBuf(const fs::path &sysfs_dev_entry)
 {
     auto config = fs::directory_entry(sysfs_dev_entry / "config");
-    auto cfg_size = config.file_size();
+    // Determining config space size using `config` file size is unreliable.
+    // Instead, perform a series of pread() calls reading little by smaller chunks.
+    size_t cfg_buf_size_max {4096};
+    size_t cfg_bread_total {0};
 
     auto cfg_fd = std::fopen(config.path().c_str(), "r");
     if (!cfg_fd)
         throw std::runtime_error(std::format("Failed to open {}", config.path().string()));
 
-    std::unique_ptr<uint8_t[]> ptr { new (std::nothrow) uint8_t [cfg_size] };
+    std::unique_ptr<uint8_t[]> ptr { new (std::nothrow) uint8_t [cfg_buf_size_max] };
     if (!ptr)
     {
         std::fclose(cfg_fd);
@@ -88,8 +93,20 @@ static cfg_space_desc GetCfgSpaceBuf(const fs::path &sysfs_dev_entry)
                                              config.path().string()));
     }
 
-    const std::size_t read = std::fread(ptr.get(), cfg_size, 1, cfg_fd);
-    if (read != 1)
+    const std::pair<size_t, size_t> off_len_pairs[] = {
+        {0, 64},
+        {64, 192},
+        {256, 3840}
+    };
+
+    for (const auto &[off, len] : off_len_pairs) {
+        ssize_t bread = pread(fileno(cfg_fd), ptr.get() + off, len, off);
+        if (bread <= 0)
+            break;
+        cfg_bread_total += bread;
+    }
+
+    if (cfg_bread_total == 0)
     {
         std::fclose(cfg_fd);
         throw std::runtime_error(std::format("Failed to read cfg buffer for {}",
@@ -97,7 +114,7 @@ static cfg_space_desc GetCfgSpaceBuf(const fs::path &sysfs_dev_entry)
     }
 
     std::fclose(cfg_fd);
-    return std::make_pair(std::move(ptr), static_cast<int32_t>(cfg_size));
+    return std::make_pair(std::move(ptr), static_cast<int32_t>(cfg_bread_total));
 }
 
 // It's not possible to determine the size of the resource requested by
