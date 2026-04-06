@@ -11,7 +11,7 @@ include(FetchContent)
 FetchContent_Declare(
     ftxui
     GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
-    GIT_TAG        main
+    GIT_TAG        v6.1.9
 )
 FetchContent_MakeAvailable(ftxui)
 
@@ -19,7 +19,7 @@ FetchContent_MakeAvailable(ftxui)
 FetchContent_Declare(
     cli11
     GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
-    GIT_TAG main
+    GIT_TAG v2.6.2
 )
 FetchContent_MakeAvailable(cli11)
 
@@ -27,7 +27,7 @@ FetchContent_MakeAvailable(cli11)
 FetchContent_Declare(
   glaze
   GIT_REPOSITORY https://github.com/stephenberry/glaze.git
-  GIT_TAG main
+  GIT_TAG v7.2.3
   #GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(glaze)
