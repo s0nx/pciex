@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2024 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2024-2026 Petr Vyazovik <xen@f-m.fm>
 
 #pragma once
 
@@ -52,10 +52,15 @@ ftxui::Element
 RegFieldCompElem(const uint8_t fb, const uint8_t lb, std::string desc = " - ",
                  bool should_highlight = false);
 
+// Vertical list of named ON/OFF bitmap flags, one per line, rendered as
+// "name [+]" (highlighted, bit set) or "name [-]" (dim, bit clear)
+ftxui::Element
+RegFlagListElem(const std::vector<std::pair<std::string, bool>> &flags);
+
 // Verbose register field element
 ftxui::Element
 RegFieldVerbElem(const uint8_t fb, const uint8_t lb, std::string desc,
-                 uint16_t val);
+                 uint32_t val);
 
 // Create component out of Element, which would only be shown if @on_click == 1
 ftxui::Component

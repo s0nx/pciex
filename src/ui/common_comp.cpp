@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2024-2025 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2024-2026 Petr Vyazovik <xen@f-m.fm>
 
 #include <format>
 #include <variant>
@@ -192,8 +192,33 @@ RegFieldCompElem(const uint8_t fb, const uint8_t lb, std::string desc,
 }
 
 Element
+RegFlagListElem(const std::vector<std::pair<std::string, bool>> &flags)
+{
+    Elements lines;
+    for (auto &[name, set] : flags) {
+        auto mark = text(set ? "[+] " : "[-] ") | bold;
+        auto name_text = text(name);
+
+        if (set) {
+            mark |= color(Color::Green);
+        } else {
+            mark |= dim;
+            name_text |= dim;
+        }
+
+        lines.push_back(hbox({
+            text("         "),
+            separator(),
+            std::move(mark),
+            std::move(name_text)
+        }));
+    }
+    return vbox(std::move(lines));
+}
+
+Element
 RegFieldVerbElem(const uint8_t fb, const uint8_t lb, std::string desc,
-                 uint16_t val)
+                 uint32_t val)
 {
     auto field_pos_desc = text(std::format("[{:>2} : {:<2}]", fb, lb));
 

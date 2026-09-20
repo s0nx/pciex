@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Copyright (C) 2024-2025 Petr Vyazovik <xen@f-m.fm>
+// Copyright (C) 2024-2026 Petr Vyazovik <xen@f-m.fm>
 
 #include "ext_cap_comp.h"
 #include "log.h"
@@ -563,6 +563,1037 @@ ExtAERCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
     return {std::move(upper), std::move(lower)};
 }
 
+static std::string LTRLatencyDesc(uint16_t value, uint8_t scale)
+{
+    static constexpr uint32_t mult[] = {1, 32, 1024, 32768, 1048576, 33554432};
+    if (scale > 5)
+        return "< reserved scale >";
+    return std::format("{} ns", static_cast<uint64_t>(value) * mult[scale]);
+}
+
+static capability_comp_ctx
+ExtLTRCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
+          std::vector<uint8_t> &vis)
+{
+    Components upper, lower;
+    constexpr auto reg_per_cap = 2;
+    size_t i = vis.size();
+    std::ranges::fill_n(std::back_inserter(vis), reg_per_cap, 0);
+
+    auto off = std::get<3>(cap);
+    auto ltr_cap = reinterpret_cast<const LTRCap *>(dev->cfg_space_.get() + off);
+    auto reg_info_cap_hdr = std::format("[extended][{:#02x}] LTR", off);
+
+    upper.push_back(CapDelimComp(cap));
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("Max Snoop Latency +0x4", &vis[i++]),
+                        CapHdrComp(ltr_cap->hdr)
+                    }));
+
+    auto max_snoop_content = vbox({
+        RegFieldVerbElem(0, 9, std::format(" Max snoop latency: {}",
+                                           LTRLatencyDesc(ltr_cap->max_snoop.value,
+                                                          ltr_cap->max_snoop.scale)),
+                         ltr_cap->max_snoop.value),
+        RegFieldVerbElem(10, 12, " Max snoop latency scale", ltr_cap->max_snoop.scale),
+        RegFieldCompElem(13, 15)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "Max Snoop Latency +0x4",
+                                     std::move(max_snoop_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("Max No-Snoop Latency +0x6", &vis[i++]),
+                    }));
+
+    auto max_no_snoop_content = vbox({
+        RegFieldVerbElem(0, 9, std::format(" Max no-snoop latency: {}",
+                                           LTRLatencyDesc(ltr_cap->max_no_snoop.value,
+                                                          ltr_cap->max_no_snoop.scale)),
+                         ltr_cap->max_no_snoop.value),
+        RegFieldVerbElem(10, 12, " Max no-snoop latency scale", ltr_cap->max_no_snoop.scale),
+        RegFieldCompElem(13, 15)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "Max No-Snoop Latency +0x6",
+                                     std::move(max_no_snoop_content), &vis[i - 1]));
+
+    return {std::move(upper), std::move(lower)};
+}
+
+static std::string L1PMPowerOnScaleDesc(uint8_t val)
+{
+    switch (val) {
+    case 0b00:
+        return "2 us";
+    case 0b01:
+        return "10 us";
+    case 0b10:
+        return "100 us";
+    default:
+        return "< reserved >";
+    }
+}
+
+static capability_comp_ctx
+ExtL1PMSubstatesCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
+                    std::vector<uint8_t> &vis)
+{
+    Components upper, lower;
+    constexpr auto reg_per_cap = 4;
+    size_t i = vis.size();
+    std::ranges::fill_n(std::back_inserter(vis), reg_per_cap, 0);
+
+    auto off = std::get<3>(cap);
+    auto l1pm_cap = reinterpret_cast<const L1PMSubstatesCap *>(dev->cfg_space_.get() + off);
+    auto reg_info_cap_hdr = std::format("[extended][{:#02x}] L1 PM Substates", off);
+
+    upper.push_back(CapDelimComp(cap));
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("L1 PM Substates Capabilities +0x4", &vis[i++]),
+                        CapHdrComp(l1pm_cap->hdr)
+                    }));
+
+    auto &pmcap = l1pm_cap->cap;
+    auto l1pm_cap_content = vbox({
+        RegFieldCompElem(0, 0, " PCI-PM L1.2 supported", pmcap.pci_pm_l1_2_supported == 1),
+        RegFieldCompElem(1, 1, " PCI-PM L1.1 supported", pmcap.pci_pm_l1_1_supported == 1),
+        RegFieldCompElem(2, 2, " ASPM L1.2 supported", pmcap.aspm_l1_2_supported == 1),
+        RegFieldCompElem(3, 3, " ASPM L1.1 supported", pmcap.aspm_l1_1_supported == 1),
+        RegFieldCompElem(4, 4, " L1 PM Substates supported", pmcap.l1_pm_substates_supported == 1),
+        RegFieldCompElem(5, 5, " Link Activation supported", pmcap.link_activation_supported == 1),
+        RegFieldCompElem(6, 7),
+        RegFieldVerbElem(8, 15, " Port Common_Mode_Restore_Time (us)",
+                         pmcap.port_common_mode_restore_time),
+        RegFieldVerbElem(16, 17, std::format(" Port T_POWER_ON scale: {}",
+                                             L1PMPowerOnScaleDesc(pmcap.port_t_power_on_scale)),
+                         pmcap.port_t_power_on_scale),
+        RegFieldCompElem(18, 18),
+        RegFieldVerbElem(19, 23, " Port T_POWER_ON value", pmcap.port_t_power_on_value),
+        RegFieldCompElem(24, 31)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "L1 PM Substates Capabilities +0x4",
+                                     std::move(l1pm_cap_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("L1 PM Substates Control 1 +0x8", &vis[i++]),
+                    }));
+    auto &ctl1 = l1pm_cap->ctl1;
+    auto l1pm_ctl1_content = vbox({
+        RegFieldCompElem(0, 0, " PCI-PM L1.2 enable", ctl1.pci_pm_l1_2_ena == 1),
+        RegFieldCompElem(1, 1, " PCI-PM L1.1 enable", ctl1.pci_pm_l1_1_ena == 1),
+        RegFieldCompElem(2, 2, " ASPM L1.2 enable", ctl1.aspm_l1_2_ena == 1),
+        RegFieldCompElem(3, 3, " ASPM L1.1 enable", ctl1.aspm_l1_1_ena == 1),
+        RegFieldCompElem(4, 4, " Link Activation interrupt enable", ctl1.link_activation_itr_ena == 1),
+        RegFieldCompElem(5, 5, " Link Activation control", ctl1.link_activation_ctl == 1),
+        RegFieldCompElem(6, 7),
+        RegFieldVerbElem(8, 15, " Common_Mode_Restore_Time (us)", ctl1.common_mode_restore_time),
+        RegFieldVerbElem(16, 25, " LTR_L1.2_THRESHOLD value", ctl1.ltr_l1_2_threshold_value),
+        RegFieldCompElem(26, 28),
+        RegFieldVerbElem(29, 31, " LTR_L1.2_THRESHOLD scale", ctl1.ltr_l1_2_threshold_scale)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "L1 PM Substates Control 1 +0x8",
+                                     std::move(l1pm_ctl1_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("L1 PM Substates Control 2 +0xc", &vis[i++]),
+                    }));
+    auto &ctl2 = l1pm_cap->ctl2;
+    auto l1pm_ctl2_content = vbox({
+        RegFieldVerbElem(0, 1, std::format(" T_POWER_ON scale: {}",
+                                           L1PMPowerOnScaleDesc(ctl2.t_power_on_scale)),
+                         ctl2.t_power_on_scale),
+        RegFieldCompElem(2, 2),
+        RegFieldVerbElem(3, 7, " T_POWER_ON value", ctl2.t_power_on_value),
+        RegFieldCompElem(8, 31)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "L1 PM Substates Control 2 +0xc",
+                                     std::move(l1pm_ctl2_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("L1 PM Substates Status +0x10", &vis[i++]),
+                    }));
+    auto l1pm_status_content = vbox({
+        RegFieldCompElem(0, 0, " Link Activation status", l1pm_cap->status.link_activation_status == 1),
+        RegFieldCompElem(1, 31)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "L1 PM Substates Status +0x10",
+                                     std::move(l1pm_status_content), &vis[i - 1]));
+
+    return {std::move(upper), std::move(lower)};
+}
+
+static std::string ResizableBARSizeDesc(uint8_t val)
+{
+    if (val > 43)
+        return "< reserved >";
+    static constexpr const char *units[] = {"MB", "GB", "TB", "PB", "EB"};
+    uint32_t unit_idx = val / 10;
+    uint32_t unit_val = 1u << (val % 10);
+    return std::format("{} {}", unit_val, units[unit_idx]);
+}
+
+// Same [+]/[-] flag convention as RegFlagListElem, but wrapped into a grid of
+// @num_cols columns instead of one flag per line, for bitmaps with many
+// short, uniform names (kept local since only these two capabilities need it).
+static Element FlagGridElem(const std::vector<std::pair<std::string, bool>> &flags,
+                            uint32_t num_cols)
+{
+    std::vector<Elements> rows;
+    Elements row;
+
+    for (auto &[name, set] : flags) {
+        auto mark = text(set ? "[+] " : "[-] ") | bold;
+        auto name_text = text(name);
+
+        if (set) {
+            mark |= color(Color::Green);
+        } else {
+            mark |= dim;
+            name_text |= dim;
+        }
+
+        row.push_back(hbox({std::move(mark), std::move(name_text), separatorEmpty()}));
+        if (row.size() == num_cols) {
+            rows.push_back(std::move(row));
+            row.clear();
+        }
+    }
+    if (!row.empty())
+        rows.push_back(std::move(row));
+
+    return hbox({
+        text("         "),
+        separator(),
+        gridbox(std::move(rows))
+    });
+}
+
+// Lists every size bit in @bitmap as a [+]/[-] grid; @base_idx is the BAR
+// Size encoding of bit 0 (0 for the Capability register's bits 4:31, 28 for
+// the Control register's extended bits 16:31 - see Table 7-116/7-117);
+// @num_bits is the field width (28 or 16).
+static Element ResizableBARSupportedSizesElem(uint32_t bitmap, uint8_t base_idx, uint8_t num_bits)
+{
+    std::vector<std::pair<std::string, bool>> flags;
+    for (uint8_t bit = 0; bit < num_bits; bit++)
+        flags.emplace_back(ResizableBARSizeDesc(base_idx + bit), bitmap & (1u << bit));
+    return FlagGridElem(flags, 4);
+}
+
+static capability_comp_ctx
+ExtResizableBARCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
+                   std::vector<uint8_t> &vis)
+{
+    Components upper, lower;
+
+    auto off = std::get<3>(cap);
+    auto rbar_cap = reinterpret_cast<const ResizableBARCap *>(dev->cfg_space_.get() + off);
+    auto reg_info_cap_hdr = std::format("[extended][{:#02x}] Resizable BAR", off);
+
+    constexpr auto entries_off = sizeof(ResizableBARCap);
+    auto entry0 = reinterpret_cast<const RegResizableBAREntry *>
+                 (dev->cfg_space_.get() + off + entries_off);
+    uint32_t num_bars = entry0->ctl.num_resizable_bars;
+    if (num_bars == 0 || num_bars > 6)
+        num_bars = 1;
+
+    size_t i = vis.size();
+    std::ranges::fill_n(std::back_inserter(vis), num_bars * 2, 0);
+
+    upper.push_back(CapDelimComp(cap));
+
+    for (uint32_t n = 0; n < num_bars; n++) {
+        auto entry_off = entries_off + n * sizeof(RegResizableBAREntry);
+        auto entry = reinterpret_cast<const RegResizableBAREntry *>
+                    (dev->cfg_space_.get() + off + entry_off);
+
+        if (n == 0)
+            upper.push_back(Container::Horizontal({
+                                RegButtonComp(std::format("BAR{} Capability +{:#03x}", n, entry_off),
+                                             &vis[i++]),
+                                CapHdrComp(rbar_cap->hdr)
+                            }));
+        else
+            upper.push_back(Container::Horizontal({
+                                RegButtonComp(std::format("BAR{} Capability +{:#03x}", n, entry_off),
+                                             &vis[i++])
+                            }));
+
+        auto cap_content = vbox({
+            RegFieldCompElem(0, 3),
+            RegFieldVerbElem(4, 31, " Supported BAR sizes (1 MB - 128 TB):",
+                             entry->cap.supported_bar_sizes),
+            ResizableBARSupportedSizesElem(entry->cap.supported_bar_sizes, 0, 28)
+        });
+        lower.push_back(CreateCapRegInfo(reg_info_cap_hdr,
+                                         std::format("BAR{} Capability +{:#03x}", n, entry_off),
+                                         std::move(cap_content), &vis[i - 1]));
+
+        upper.push_back(Container::Horizontal({
+                            RegButtonComp(std::format("BAR{} Control +{:#03x}", n, entry_off + 4),
+                                         &vis[i++]),
+                        }));
+        auto ctl_content = vbox({
+            RegFieldVerbElem(0, 2, std::format(" BAR index: {}", entry->ctl.bar_index),
+                             entry->ctl.bar_index),
+            RegFieldCompElem(3, 4),
+            RegFieldVerbElem(5, 7, std::format(" Number of resizable BARs: {}",
+                                               entry->ctl.num_resizable_bars),
+                             entry->ctl.num_resizable_bars),
+            RegFieldVerbElem(8, 13, std::format(" BAR size: {}",
+                                                ResizableBARSizeDesc(entry->ctl.bar_size)),
+                             entry->ctl.bar_size),
+            RegFieldCompElem(14, 15),
+            RegFieldVerbElem(16, 31, " Supported BAR sizes (256 TB - 8 EB):",
+                             entry->ctl.supported_bar_sizes_ext),
+            ResizableBARSupportedSizesElem(entry->ctl.supported_bar_sizes_ext, 28, 16)
+        });
+        lower.push_back(CreateCapRegInfo(reg_info_cap_hdr,
+                                         std::format("BAR{} Control +{:#03x}", n, entry_off + 4),
+                                         std::move(ctl_content), &vis[i - 1]));
+    }
+
+    return {std::move(upper), std::move(lower)};
+}
+
+// bit n means page size 4KB * 2^n (2^(n+12) bytes) is supported/selected
+static std::string SRIOVPageSizeDesc(uint8_t bit)
+{
+    static constexpr const char *units[] = {"KB", "MB", "GB", "TB"};
+    uint32_t exp = bit + 2;
+    uint32_t unit_idx = exp / 10;
+    uint32_t unit_val = 1u << (exp % 10);
+    return std::format("{} {}", unit_val, units[unit_idx]);
+}
+
+static Element SRIOVPageSizesElem(uint32_t bitmap)
+{
+    std::vector<std::pair<std::string, bool>> flags;
+    for (uint8_t bit = 0; bit < 32; bit++)
+        flags.emplace_back(SRIOVPageSizeDesc(bit), bitmap & (1u << bit));
+    return FlagGridElem(flags, 4);
+}
+
+static capability_comp_ctx
+ExtSRIOVCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
+           std::vector<uint8_t> &vis)
+{
+    Components upper, lower;
+    constexpr auto reg_per_cap = 17;
+    size_t i = vis.size();
+    std::ranges::fill_n(std::back_inserter(vis), reg_per_cap, 0);
+
+    auto off = std::get<3>(cap);
+    auto sriov_cap = reinterpret_cast<const SRIOVCap *>(dev->cfg_space_.get() + off);
+    auto reg_info_cap_hdr = std::format("[extended][{:#02x}] SR-IOV", off);
+
+    upper.push_back(CapDelimComp(cap));
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("SR-IOV Capabilities +0x4", &vis[i++]),
+                        CapHdrComp(sriov_cap->hdr)
+                    }));
+    auto &scap = sriov_cap->sriov_cap;
+    auto sriov_cap_content = vbox({
+        RegFieldCompElem(0, 0, " VF Migration capable", scap.vf_migration_capable == 1),
+        RegFieldCompElem(1, 1, " ARI Capable Hierarchy preserved", scap.ari_capable_hierarchy_preserved == 1),
+        RegFieldCompElem(2, 2, " VF 10-Bit Tag Requester supported", scap.vf_10bit_tag_req_supported == 1),
+        RegFieldCompElem(3, 20),
+        RegFieldVerbElem(21, 31, " VF Migration interrupt message number", scap.vf_migration_itr_msg_num)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "SR-IOV Capabilities +0x4",
+                                     std::move(sriov_cap_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("SR-IOV Control +0x8", &vis[i++]),
+                    }));
+    auto &sctl = sriov_cap->sriov_ctl;
+    auto sriov_ctl_content = vbox({
+        RegFieldCompElem(0, 0, " VF Enable", sctl.vf_ena == 1),
+        RegFieldCompElem(1, 1, " VF Migration Enable", sctl.vf_migration_ena == 1),
+        RegFieldCompElem(2, 2, " VF Migration Interrupt Enable", sctl.vf_migration_itr_ena == 1),
+        RegFieldCompElem(3, 3, " VF MSE", sctl.vf_mse == 1),
+        RegFieldCompElem(4, 4, " ARI Capable Hierarchy", sctl.ari_capable_hierarchy == 1),
+        RegFieldCompElem(5, 5, " VF 10-Bit Tag Requester Enable", sctl.vf_10bit_tag_req_ena == 1),
+        RegFieldCompElem(6, 15)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "SR-IOV Control +0x8",
+                                     std::move(sriov_ctl_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("SR-IOV Status +0xa", &vis[i++]),
+                    }));
+    auto sriov_status_content = vbox({
+        RegFieldCompElem(0, 0, " VF Migration Status", sriov_cap->sriov_status.vf_migration_status == 1),
+        RegFieldCompElem(1, 15)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "SR-IOV Status +0xa",
+                                     std::move(sriov_status_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("InitialVFs +0xc", &vis[i++]),
+                    }));
+    auto initial_vfs_content = vbox({
+        RegFieldVerbElem(0, 15, " InitialVFs", sriov_cap->initial_vfs.initial_vfs)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "InitialVFs +0xc",
+                                     std::move(initial_vfs_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("TotalVFs +0xe", &vis[i++]),
+                    }));
+    auto total_vfs_content = vbox({
+        RegFieldVerbElem(0, 15, " TotalVFs", sriov_cap->total_vfs.total_vfs)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "TotalVFs +0xe",
+                                     std::move(total_vfs_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("NumVFs / Fcn Dep Link +0x10", &vis[i++]),
+                    }));
+    auto &numvfs = sriov_cap->num_vfs_fcn_dep_link;
+    auto numvfs_content = vbox({
+        RegFieldVerbElem(0, 15, " NumVFs", numvfs.num_vfs),
+        RegFieldVerbElem(16, 23, " Function Dependency Link", numvfs.fcn_dep_link),
+        RegFieldCompElem(24, 31)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "NumVFs / Fcn Dep Link +0x10",
+                                     std::move(numvfs_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("First VF Offset / VF Stride +0x14", &vis[i++]),
+                    }));
+    auto &vfoff = sriov_cap->first_vf_off_stride;
+    auto vfoff_content = vbox({
+        RegFieldVerbElem(0, 15, " First VF Offset", vfoff.first_vf_offset),
+        RegFieldVerbElem(16, 31, " VF Stride", vfoff.vf_stride)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "First VF Offset / VF Stride +0x14",
+                                     std::move(vfoff_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("VF Device ID +0x18", &vis[i++]),
+                    }));
+    auto vfdevid_content = vbox({
+        RegFieldCompElem(0, 15),
+        RegFieldVerbElem(16, 31, " VF Device ID", sriov_cap->vf_dev_id.vf_device_id)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "VF Device ID +0x18",
+                                     std::move(vfdevid_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("Supported Page Sizes +0x1c", &vis[i++]),
+                    }));
+    auto supp_pg_content = vbox({
+        RegFieldVerbElem(0, 31, " Supported page sizes:",
+                         sriov_cap->supported_page_sizes.supported_page_sizes),
+        SRIOVPageSizesElem(sriov_cap->supported_page_sizes.supported_page_sizes)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "Supported Page Sizes +0x1c",
+                                     std::move(supp_pg_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("System Page Size +0x20", &vis[i++]),
+                    }));
+    auto sys_pg_content = vbox({
+        RegFieldVerbElem(0, 31, " System page size:",
+                         sriov_cap->system_page_size.system_page_size),
+        SRIOVPageSizesElem(sriov_cap->system_page_size.system_page_size)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "System Page Size +0x20",
+                                     std::move(sys_pg_content), &vis[i - 1]));
+
+    const RegSRIOVVFBAR *vf_bars[6] = {
+        &sriov_cap->vf_bar0, &sriov_cap->vf_bar1, &sriov_cap->vf_bar2,
+        &sriov_cap->vf_bar3, &sriov_cap->vf_bar4, &sriov_cap->vf_bar5
+    };
+    for (uint32_t n = 0; n < 6; n++) {
+        auto bar_off = 0x24 + n * 4;
+        upper.push_back(Container::Horizontal({
+                            RegButtonComp(std::format("VF BAR{} +{:#03x}", n, bar_off), &vis[i++]),
+                        }));
+        auto vf_bar_content = vbox({
+            RegFieldVerbElem(0, 31, std::format(" VF BAR{}: {:#08x}", n, vf_bars[n]->bar),
+                             vf_bars[n]->bar)
+        });
+        lower.push_back(CreateCapRegInfo(reg_info_cap_hdr,
+                                         std::format("VF BAR{} +{:#03x}", n, bar_off),
+                                         std::move(vf_bar_content), &vis[i - 1]));
+    }
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("VF Migration State Array Offset +0x3c", &vis[i++]),
+                    }));
+    auto &migoff = sriov_cap->vf_mig_state_arr_off;
+    auto migoff_content = vbox({
+        RegFieldVerbElem(0, 2, " VF Migration State BIR", migoff.vf_migration_state_bir),
+        RegFieldVerbElem(3, 31, " VF Migration State Offset", migoff.vf_migration_state_offset)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "VF Migration State Array Offset +0x3c",
+                                     std::move(migoff_content), &vis[i - 1]));
+
+    return {std::move(upper), std::move(lower)};
+}
+
+static const char *ACSMemTgtAccessCtlDesc(uint8_t val)
+{
+    switch (val) {
+    case 0b00:
+        return "Direct Request access enabled";
+    case 0b01:
+        return "Request blocking enabled";
+    case 0b10:
+        return "Request redirect enabled";
+    default:
+        return "< reserved >";
+    }
+}
+
+static capability_comp_ctx
+ExtACSCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
+         std::vector<uint8_t> &vis)
+{
+    Components upper, lower;
+
+    auto off = std::get<3>(cap);
+    auto acs_cap = reinterpret_cast<const ACSCap *>(dev->cfg_space_.get() + off);
+    auto reg_info_cap_hdr = std::format("[extended][{:#02x}] ACS", off);
+
+    bool has_egress_vec = acs_cap->acs_cap.p2p_egress_ctl == 1;
+    uint32_t vec_size = !has_egress_vec ? 0 :
+                        acs_cap->acs_cap.egress_ctl_vec_size == 0 ? 256 :
+                        acs_cap->acs_cap.egress_ctl_vec_size;
+    uint32_t vec_bytes = ((vec_size + 31) / 32) * 4;
+
+    auto reg_per_cap = has_egress_vec ? 3 : 2;
+    size_t i = vis.size();
+    std::ranges::fill_n(std::back_inserter(vis), reg_per_cap, 0);
+
+    upper.push_back(CapDelimComp(cap));
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("ACS Capability +0x4", &vis[i++]),
+                        CapHdrComp(acs_cap->hdr)
+                    }));
+
+    auto &acap = acs_cap->acs_cap;
+    auto acs_cap_content = vbox({
+        RegFieldCompElem(0, 0, " ACS Source Validation", acap.src_val == 1),
+        RegFieldCompElem(1, 1, " ACS Translation Blocking", acap.trans_block == 1),
+        RegFieldCompElem(2, 2, " ACS P2P Request Redirect", acap.p2p_req_redirect == 1),
+        RegFieldCompElem(3, 3, " ACS P2P Completion Redirect", acap.p2p_compl_redirect == 1),
+        RegFieldCompElem(4, 4, " ACS Upstream Forwarding", acap.upstream_fwd == 1),
+        RegFieldCompElem(5, 5, " ACS P2P Egress Control", acap.p2p_egress_ctl == 1),
+        RegFieldCompElem(6, 6, " ACS Direct Translated P2P", acap.direct_trans_p2p == 1),
+        RegFieldCompElem(7, 7, " ACS Enhanced Capability", acap.enhanced_cap == 1),
+        RegFieldVerbElem(8, 15, std::format(" Egress Control Vector size: {} bits", vec_size),
+                         acap.egress_ctl_vec_size)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "ACS Capability +0x4",
+                                     std::move(acs_cap_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("ACS Control +0x6", &vis[i++]),
+                    }));
+    auto &actl = acs_cap->acs_ctl;
+    auto acs_ctl_content = vbox({
+        RegFieldCompElem(0, 0, " ACS Source Validation Enable", actl.src_val_ena == 1),
+        RegFieldCompElem(1, 1, " ACS Translation Blocking Enable", actl.trans_block_ena == 1),
+        RegFieldCompElem(2, 2, " ACS P2P Request Redirect Enable", actl.p2p_req_redirect_ena == 1),
+        RegFieldCompElem(3, 3, " ACS P2P Completion Redirect Enable", actl.p2p_compl_redirect_ena == 1),
+        RegFieldCompElem(4, 4, " ACS Upstream Forwarding Enable", actl.upstream_fwd_ena == 1),
+        RegFieldCompElem(5, 5, " ACS P2P Egress Control Enable", actl.p2p_egress_ctl_ena == 1),
+        RegFieldCompElem(6, 6, " ACS Direct Translated P2P Enable", actl.direct_trans_p2p_ena == 1),
+        RegFieldCompElem(7, 7, " ACS I/O Request Blocking Enable", actl.io_req_block_ena == 1),
+        RegFieldVerbElem(8, 9, std::format(" ACS DSP Memory Target Access Control: {}",
+                                          ACSMemTgtAccessCtlDesc(actl.dsp_mem_tgt_access_ctl)),
+                         actl.dsp_mem_tgt_access_ctl),
+        RegFieldVerbElem(10, 11, std::format(" ACS USP Memory Target Access Control: {}",
+                                            ACSMemTgtAccessCtlDesc(actl.usp_mem_tgt_access_ctl)),
+                         actl.usp_mem_tgt_access_ctl),
+        RegFieldCompElem(12, 12, " ACS Unclaimed Request Redirect Control", actl.unclaimed_req_redirect_ctl == 1),
+        RegFieldCompElem(13, 15)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "ACS Control +0x6",
+                                     std::move(acs_ctl_content), &vis[i - 1]));
+
+    if (has_egress_vec) {
+        auto reg_label = std::format("Egress Control Vector [{} bits] +0x8", vec_size);
+        upper.push_back(Container::Horizontal({
+                            RegButtonComp(reg_label, &vis[i++]),
+                        }));
+        auto vec_content = GetHexDumpElem("Egress Control Vector >>>",
+                                          dev->cfg_space_.get() + off + 0x8, vec_bytes, 4);
+        lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, reg_label,
+                                         std::move(vec_content), &vis[i - 1]));
+    } else {
+        upper.push_back(Container::Horizontal({
+                            EmptyCapRegComp("Egress Control Vector +0x8")
+                        }));
+    }
+
+    return {std::move(upper), std::move(lower)};
+}
+
+static const char *DPCTriggerEnaDesc(uint8_t val)
+{
+    switch (val) {
+    case 0b00:
+        return "disabled";
+    case 0b01:
+        return "unmasked uncorr err / ERR_FATAL";
+    case 0b10:
+        return "unmasked uncorr err / ERR_NONFATAL / ERR_FATAL";
+    default:
+        return "< reserved >";
+    }
+}
+
+static const char *DPCTriggerReasonDesc(uint8_t val)
+{
+    switch (val) {
+    case 0b00:
+        return "unmasked uncorrectable error";
+    case 0b01:
+        return "ERR_NONFATAL received";
+    case 0b10:
+        return "ERR_FATAL received";
+    default:
+        return "see Trigger Reason Extension";
+    }
+}
+
+static const char *DPCTriggerReasonExtDesc(uint8_t val)
+{
+    switch (val) {
+    case 0b00:
+        return "RP PIO error";
+    case 0b01:
+        return "DPC Software Trigger";
+    default:
+        return "< reserved >";
+    }
+}
+
+// RP PIO Status/Mask/Severity/SysError/Exception registers all share this
+// bit layout (Cfg/IO/Mem x UR Cpl/CA Cpl/CTO); @kind labels which one
+template <typename T>
+static Element DPCRPPIOContent(const T &reg, const char *kind)
+{
+    return vbox({
+        RegFieldCompElem(0, 0, std::format(" Cfg UR Cpl {}", kind), reg.cfg_ur_cpl == 1),
+        RegFieldCompElem(1, 1, std::format(" Cfg CA Cpl {}", kind), reg.cfg_ca_cpl == 1),
+        RegFieldCompElem(2, 2, std::format(" Cfg CTO {}", kind), reg.cfg_cto == 1),
+        RegFieldCompElem(3, 7),
+        RegFieldCompElem(8, 8, std::format(" I/O UR Cpl {}", kind), reg.io_ur_cpl == 1),
+        RegFieldCompElem(9, 9, std::format(" I/O CA Cpl {}", kind), reg.io_ca_cpl == 1),
+        RegFieldCompElem(10, 10, std::format(" I/O CTO {}", kind), reg.io_cto == 1),
+        RegFieldCompElem(11, 15),
+        RegFieldCompElem(16, 16, std::format(" Mem UR Cpl {}", kind), reg.mem_ur_cpl == 1),
+        RegFieldCompElem(17, 17, std::format(" Mem CA Cpl {}", kind), reg.mem_ca_cpl == 1),
+        RegFieldCompElem(18, 18, std::format(" Mem CTO {}", kind), reg.mem_cto == 1),
+        RegFieldCompElem(19, 31)
+    });
+}
+
+static capability_comp_ctx
+ExtDPCCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
+         std::vector<uint8_t> &vis)
+{
+    Components upper, lower;
+
+    auto off = std::get<3>(cap);
+    auto dpc_cap = reinterpret_cast<const DPCCap *>(dev->cfg_space_.get() + off);
+    auto reg_info_cap_hdr = std::format("[extended][{:#02x}] DPC", off);
+
+    bool rp_ext = dpc_cap->dpc_cap.rp_ext_for_dpc == 1;
+    auto reg_per_cap = rp_ext ? 12 : 4;
+    size_t i = vis.size();
+    std::ranges::fill_n(std::back_inserter(vis), reg_per_cap, 0);
+
+    upper.push_back(CapDelimComp(cap));
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("DPC Capability +0x4", &vis[i++]),
+                        CapHdrComp(dpc_cap->hdr)
+                    }));
+
+    auto &dcap = dpc_cap->dpc_cap;
+    auto dpc_cap_content = vbox({
+        RegFieldVerbElem(0, 4, " DPC Interrupt Message Number", dcap.dpc_itr_msg_num),
+        RegFieldCompElem(5, 5, " RP Extensions for DPC", dcap.rp_ext_for_dpc == 1),
+        RegFieldCompElem(6, 6, " Poisoned TLP Egress Blocking Supported", dcap.poisoned_tlp_egress_blk_supported == 1),
+        RegFieldCompElem(7, 7, " DPC Software Triggering Supported", dcap.dpc_sw_triggering_supported == 1),
+        RegFieldVerbElem(8, 11, " RP PIO Log Size", dcap.rp_pio_log_size),
+        RegFieldCompElem(12, 12, " DL_Active ERR_COR Signaling Supported", dcap.dl_active_err_cor_sig_supported == 1),
+        RegFieldCompElem(13, 15)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "DPC Capability +0x4",
+                                     std::move(dpc_cap_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("DPC Control +0x6", &vis[i++]),
+                    }));
+    auto &dctl = dpc_cap->dpc_ctl;
+    auto dpc_ctl_content = vbox({
+        RegFieldVerbElem(0, 1, std::format(" DPC Trigger Enable: {}", DPCTriggerEnaDesc(dctl.dpc_trigger_ena)),
+                         dctl.dpc_trigger_ena),
+        RegFieldCompElem(2, 2, std::format(" DPC Completion Control: {}",
+                                           dctl.dpc_completion_ctl ?
+                                           "Unsupported Request (UR)" : "Completer Abort (CA)")),
+        RegFieldCompElem(3, 3, " DPC Interrupt Enable", dctl.dpc_itr_ena == 1),
+        RegFieldCompElem(4, 4, " DPC ERR_COR Enable", dctl.dpc_err_cor_ena == 1),
+        RegFieldCompElem(5, 5, " Poisoned TLP Egress Blocking Enable", dctl.poisoned_tlp_egress_blk_ena == 1),
+        RegFieldCompElem(6, 6, " DPC Software Trigger", dctl.dpc_sw_trigger == 1),
+        RegFieldCompElem(7, 7, " DL_Active ERR_COR Enable", dctl.dl_active_err_cor_ena == 1),
+        RegFieldCompElem(8, 8, " DPC SIG_SFW Enable", dctl.dpc_sig_sfw_ena == 1),
+        RegFieldCompElem(9, 15)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "DPC Control +0x6",
+                                     std::move(dpc_ctl_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("DPC Status +0x8", &vis[i++]),
+                    }));
+    auto &dstat = dpc_cap->dpc_status;
+    auto dpc_status_content = vbox({
+        RegFieldCompElem(0, 0, " DPC Trigger Status", dstat.dpc_trigger_status == 1),
+        RegFieldVerbElem(1, 2, std::format(" DPC Trigger Reason: {}", DPCTriggerReasonDesc(dstat.dpc_trigger_reason)),
+                         dstat.dpc_trigger_reason),
+        RegFieldCompElem(3, 3, " DPC Interrupt Status", dstat.dpc_itr_status == 1),
+        RegFieldCompElem(4, 4, " DPC RP Busy", dstat.dpc_rp_busy == 1),
+        RegFieldVerbElem(5, 6, std::format(" DPC Trigger Reason Extension: {}",
+                                          DPCTriggerReasonExtDesc(dstat.dpc_trigger_reason_ext)),
+                         dstat.dpc_trigger_reason_ext),
+        RegFieldCompElem(7, 7),
+        RegFieldVerbElem(8, 12, " RP PIO First Error Pointer", dstat.rp_pio_first_err_ptr),
+        RegFieldCompElem(13, 13, " DPC SIG_SFW Status", dstat.dpc_sig_sfw_status == 1),
+        RegFieldCompElem(14, 15)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "DPC Status +0x8",
+                                     std::move(dpc_status_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("DPC Error Source ID +0xa", &vis[i++]),
+                    }));
+    auto dpc_err_src_content = vbox({
+        RegFieldVerbElem(0, 15, std::format(" DPC Error Source ID (Requester ID): {:#06x}",
+                                           dpc_cap->dpc_err_src_id.req_id),
+                         dpc_cap->dpc_err_src_id.req_id)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "DPC Error Source ID +0xa",
+                                     std::move(dpc_err_src_content), &vis[i - 1]));
+
+    if (rp_ext) {
+        upper.push_back(Container::Horizontal({
+                            RegButtonComp("RP PIO Status +0xc", &vis[i++]),
+                        }));
+        lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "RP PIO Status +0xc",
+                                         DPCRPPIOContent(dpc_cap->rp_pio_status, "Status"), &vis[i - 1]));
+
+        upper.push_back(Container::Horizontal({
+                            RegButtonComp("RP PIO Mask +0x10", &vis[i++]),
+                        }));
+        lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "RP PIO Mask +0x10",
+                                         DPCRPPIOContent(dpc_cap->rp_pio_mask, "Mask"), &vis[i - 1]));
+
+        upper.push_back(Container::Horizontal({
+                            RegButtonComp("RP PIO Severity +0x14", &vis[i++]),
+                        }));
+        lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "RP PIO Severity +0x14",
+                                         DPCRPPIOContent(dpc_cap->rp_pio_severity, "Severity"), &vis[i - 1]));
+
+        upper.push_back(Container::Horizontal({
+                            RegButtonComp("RP PIO SysError +0x18", &vis[i++]),
+                        }));
+        lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "RP PIO SysError +0x18",
+                                         DPCRPPIOContent(dpc_cap->rp_pio_syserror, "SysError"), &vis[i - 1]));
+
+        upper.push_back(Container::Horizontal({
+                            RegButtonComp("RP PIO Exception +0x1c", &vis[i++]),
+                        }));
+        lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "RP PIO Exception +0x1c",
+                                         DPCRPPIOContent(dpc_cap->rp_pio_exception, "Exception"), &vis[i - 1]));
+
+        upper.push_back(Container::Horizontal({
+                            RegButtonComp("RP PIO Header Log +0x20", &vis[i++]),
+                        }));
+        std::array<uint8_t, sizeof(RegAERHdrLog)> hdr_log;
+        uint32_t *hdr_dw = reinterpret_cast<uint32_t *>(hdr_log.data());
+        for (int n = 0; n < 4; n++)
+            *hdr_dw++ = std::byteswap(dpc_cap->rp_pio_hdr_log.dw[n]);
+        auto hdr_log_content = GetHexDumpElem("RP PIO TLP hdr >>>", hdr_log.data(), hdr_log.size(), 4);
+        lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "RP PIO Header Log +0x20",
+                                         std::move(hdr_log_content), &vis[i - 1]));
+
+        upper.push_back(Container::Horizontal({
+                            RegButtonComp("RP PIO ImpSpec Log +0x30", &vis[i++]),
+                        }));
+        auto impspec_content = vbox({
+            RegFieldVerbElem(0, 31, std::format(" RP PIO ImpSpec Log: {:#010x}", dpc_cap->rp_pio_impspec_log.log),
+                             dpc_cap->rp_pio_impspec_log.log)
+        });
+        lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "RP PIO ImpSpec Log +0x30",
+                                         std::move(impspec_content), &vis[i - 1]));
+
+        upper.push_back(Container::Horizontal({
+                            RegButtonComp("RP PIO TLP Prefix Log +0x34", &vis[i++]),
+                        }));
+        std::array<uint8_t, sizeof(RegAERTlpPrefixLog)> tlp_pref_log;
+        uint32_t *tlp_dw = reinterpret_cast<uint32_t *>(tlp_pref_log.data());
+        for (int n = 0; n < 4; n++)
+            *tlp_dw++ = std::byteswap(dpc_cap->rp_pio_tlp_pref_log.dw[n]);
+        auto tlp_pref_log_content = GetHexDumpElem("RP PIO e2e TLP prefix >>>",
+                                                   tlp_pref_log.data(), tlp_pref_log.size(), 4);
+        lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "RP PIO TLP Prefix Log +0x34",
+                                         std::move(tlp_pref_log_content), &vis[i - 1]));
+    } else {
+        upper.push_back(Container::Horizontal({
+                            EmptyCapRegComp("RP PIO Status +0xc"),
+                            EmptyCapRegComp("RP PIO Mask +0x10")
+                        }));
+        upper.push_back(Container::Horizontal({
+                            EmptyCapRegComp("RP PIO Severity +0x14"),
+                            EmptyCapRegComp("RP PIO SysError +0x18")
+                        }));
+        upper.push_back(Container::Horizontal({
+                            EmptyCapRegComp("RP PIO Exception +0x1c"),
+                            EmptyCapRegComp("RP PIO Header Log +0x20")
+                        }));
+        upper.push_back(Container::Horizontal({
+                            EmptyCapRegComp("RP PIO ImpSpec Log +0x30"),
+                            EmptyCapRegComp("RP PIO TLP Prefix Log +0x34")
+                        }));
+    }
+
+    return {std::move(upper), std::move(lower)};
+}
+
+static capability_comp_ctx
+ExtATSCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
+         std::vector<uint8_t> &vis)
+{
+    Components upper, lower;
+    constexpr auto reg_per_cap = 2;
+    size_t i = vis.size();
+    std::ranges::fill_n(std::back_inserter(vis), reg_per_cap, 0);
+
+    auto off = std::get<3>(cap);
+    auto ats_cap = reinterpret_cast<const ATSCap *>(dev->cfg_space_.get() + off);
+    auto reg_info_cap_hdr = std::format("[extended][{:#02x}] ATS", off);
+
+    upper.push_back(CapDelimComp(cap));
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("ATS Capability +0x4", &vis[i++]),
+                        CapHdrComp(ats_cap->hdr)
+                    }));
+
+    auto &acap = ats_cap->ats_cap;
+    auto ats_cap_content = vbox({
+        RegFieldVerbElem(0, 4, std::format(" Invalidate Queue Depth: {}",
+                                          acap.invalidate_queue_depth == 0 ? 32 : acap.invalidate_queue_depth),
+                         acap.invalidate_queue_depth),
+        RegFieldCompElem(5, 5, " Page Aligned Request", acap.page_aligned_req == 1),
+        RegFieldCompElem(6, 6, " Global Invalidate Supported", acap.global_invalidate_supported == 1),
+        RegFieldCompElem(7, 7, " Relaxed Ordering Supported", acap.relaxed_ordering_supported == 1),
+        RegFieldCompElem(8, 15)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "ATS Capability +0x4",
+                                     std::move(ats_cap_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("ATS Control +0x6", &vis[i++]),
+                    }));
+    auto &actl = ats_cap->ats_ctl;
+    auto ats_ctl_content = vbox({
+        RegFieldVerbElem(0, 4, std::format(" Smallest Translation Unit: {} x 4096-byte block(s)",
+                                          1u << actl.stu),
+                         actl.stu),
+        RegFieldCompElem(5, 14),
+        RegFieldCompElem(15, 15, " Enable", actl.ena == 1)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "ATS Control +0x6",
+                                     std::move(ats_ctl_content), &vis[i - 1]));
+
+    return {std::move(upper), std::move(lower)};
+}
+
+static capability_comp_ctx
+ExtPageReqIfaceCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
+                   std::vector<uint8_t> &vis)
+{
+    Components upper, lower;
+    constexpr auto reg_per_cap = 4;
+    size_t i = vis.size();
+    std::ranges::fill_n(std::back_inserter(vis), reg_per_cap, 0);
+
+    auto off = std::get<3>(cap);
+    auto pri_cap = reinterpret_cast<const PageReqIfaceCap *>(dev->cfg_space_.get() + off);
+    auto reg_info_cap_hdr = std::format("[extended][{:#02x}] Page Request Interface", off);
+
+    upper.push_back(CapDelimComp(cap));
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("Page Request Control +0x4", &vis[i++]),
+                        CapHdrComp(pri_cap->hdr)
+                    }));
+
+    auto &pctl = pri_cap->pri_ctl;
+    auto pri_ctl_content = vbox({
+        RegFieldCompElem(0, 0, " Enable", pctl.enable == 1),
+        RegFieldCompElem(1, 1, " Reset", pctl.reset == 1),
+        RegFieldCompElem(2, 15)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "Page Request Control +0x4",
+                                     std::move(pri_ctl_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("Page Request Status +0x6", &vis[i++]),
+                    }));
+    auto &pstat = pri_cap->pri_status;
+    auto pri_status_content = vbox({
+        RegFieldCompElem(0, 0, " Response Failure", pstat.response_failure == 1),
+        RegFieldCompElem(1, 1, " Unexpected Page Request Group Index", pstat.unexpected_prg_idx == 1),
+        RegFieldCompElem(2, 7),
+        RegFieldCompElem(8, 8, " Stopped", pstat.stopped == 1),
+        RegFieldCompElem(9, 14),
+        RegFieldCompElem(15, 15, " PRG Response PASID Required", pstat.prg_resp_pasid_required == 1)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "Page Request Status +0x6",
+                                     std::move(pri_status_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("Outstanding Page Request Capacity +0x8", &vis[i++]),
+                    }));
+    auto capacity_content = vbox({
+        RegFieldVerbElem(0, 31, " Outstanding Page Request Capacity",
+                         pri_cap->outstanding_req_capacity.outstanding_req_capacity)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "Outstanding Page Request Capacity +0x8",
+                                     std::move(capacity_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("Outstanding Page Request Allocation +0xc", &vis[i++]),
+                    }));
+    auto allocation_content = vbox({
+        RegFieldVerbElem(0, 31, " Outstanding Page Request Allocation",
+                         pri_cap->outstanding_req_allocation.outstanding_req_allocation)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "Outstanding Page Request Allocation +0xc",
+                                     std::move(allocation_content), &vis[i - 1]));
+
+    return {std::move(upper), std::move(lower)};
+}
+
+static const char *TPHSTTableLocationDesc(uint8_t val)
+{
+    switch (val) {
+    case 0b00:
+        return "not present";
+    case 0b01:
+        return "in this capability structure";
+    case 0b10:
+        return "in the MSI-X Table";
+    default:
+        return "< reserved >";
+    }
+}
+
+static const char *TPHReqEnaDesc(uint8_t val)
+{
+    switch (val) {
+    case 0b00:
+        return "not permitted to issue TPH or Extended TPH";
+    case 0b01:
+        return "TPH permitted, Extended TPH not permitted";
+    case 0b11:
+        return "TPH and Extended TPH permitted";
+    default:
+        return "< reserved >";
+    }
+}
+
+static capability_comp_ctx
+ExtTPHRequesterCap(const pci::PciDevBase *dev, const pci::CapDesc &cap,
+                   std::vector<uint8_t> &vis)
+{
+    Components upper, lower;
+
+    auto off = std::get<3>(cap);
+    auto tph_cap = reinterpret_cast<const TPHRequesterCap *>(dev->cfg_space_.get() + off);
+
+    bool st_table_here = tph_cap->tph_cap.st_table_location == 0b01;
+    uint32_t st_entries = st_table_here ? tph_cap->tph_cap.st_table_size + 1u : 0;
+
+    auto reg_per_cap = 2 + (st_table_here ? 1 : 0);
+    size_t i = vis.size();
+    std::ranges::fill_n(std::back_inserter(vis), reg_per_cap, 0);
+
+    auto reg_info_cap_hdr = std::format("[extended][{:#02x}] TPH Requester", off);
+
+    upper.push_back(CapDelimComp(cap));
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("TPH Requester Capability +0x4", &vis[i++]),
+                        CapHdrComp(tph_cap->hdr)
+                    }));
+
+    auto &tcap = tph_cap->tph_cap;
+    auto tph_cap_content = vbox({
+        RegFieldCompElem(0, 0, " No ST Mode Supported", tcap.no_st_mode_supported == 1),
+        RegFieldCompElem(1, 1, " Interrupt Vector Mode Supported", tcap.interrupt_vector_mode_supported == 1),
+        RegFieldCompElem(2, 2, " Device Specific Mode Supported", tcap.device_specific_mode_supported == 1),
+        RegFieldCompElem(3, 7),
+        RegFieldCompElem(8, 8, " Extended TPH Requester Supported", tcap.extended_tph_req_supported == 1),
+        RegFieldVerbElem(9, 10, std::format(" ST Table Location: {}",
+                                           TPHSTTableLocationDesc(tcap.st_table_location)),
+                         tcap.st_table_location),
+        RegFieldCompElem(11, 15),
+        RegFieldVerbElem(16, 26, std::format(" ST Table Size: {} entries", tcap.st_table_size + 1u),
+                         tcap.st_table_size),
+        RegFieldCompElem(27, 31)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "TPH Requester Capability +0x4",
+                                     std::move(tph_cap_content), &vis[i - 1]));
+
+    upper.push_back(Container::Horizontal({
+                        RegButtonComp("TPH Requester Control +0x8", &vis[i++]),
+                    }));
+    auto &tctl = tph_cap->tph_ctl;
+    auto tph_ctl_content = vbox({
+        RegFieldVerbElem(0, 2, std::format(" ST Mode Select: {}",
+                                          tctl.st_mode_select == 0b000 ? "No ST Mode" :
+                                          tctl.st_mode_select == 0b001 ? "Interrupt Vector Mode" :
+                                          tctl.st_mode_select == 0b010 ? "Device Specific Mode" :
+                                          "< reserved >"),
+                         tctl.st_mode_select),
+        RegFieldCompElem(3, 7),
+        RegFieldVerbElem(8, 9, std::format(" TPH Requester Enable: {}", TPHReqEnaDesc(tctl.tph_req_ena)),
+                         tctl.tph_req_ena),
+        RegFieldCompElem(10, 31)
+    });
+    lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, "TPH Requester Control +0x8",
+                                     std::move(tph_ctl_content), &vis[i - 1]));
+
+    if (st_table_here) {
+        auto reg_label = std::format("ST Table [{} entries] +0xc", st_entries);
+        upper.push_back(Container::Horizontal({
+                            RegButtonComp(reg_label, &vis[i++]),
+                        }));
+
+        Elements st_lines;
+        for (uint32_t n = 0; n < st_entries; n++) {
+            auto entry = reinterpret_cast<const RegTPHSTEntry *>
+                        (dev->cfg_space_.get() + off + 0xc + n * sizeof(RegTPHSTEntry));
+            st_lines.push_back(text(std::format("  [{:>3}] ST Lower: {:#04x}  ST Upper: {:#04x}",
+                                                n, entry->st_lower, entry->st_upper)));
+        }
+        auto st_table_content = vbox(std::move(st_lines));
+        lower.push_back(CreateCapRegInfo(reg_info_cap_hdr, reg_label,
+                                         std::move(st_table_content), &vis[i - 1]));
+    } else {
+        upper.push_back(Container::Horizontal({
+                            EmptyCapRegComp("ST Table +0xc")
+                        }));
+    }
+
+    return {std::move(upper), std::move(lower)};
+}
+
 capability_comp_ctx
 GetExtendedCapComponents(const pci::PciDevBase *dev, const ExtCapID cap_id,
                          const pci::CapDesc &cap, std::vector<uint8_t> &vis)
@@ -595,29 +1626,29 @@ GetExtendedCapComponents(const pci::PciDevBase *dev, const ExtCapID cap_id,
     case ExtCapID::cac:
         return NotImplCap();
     case ExtCapID::acs:
-        return NotImplCap();
+        return ExtACSCap(dev, cap, vis);
     case ExtCapID::ari:
         return ExtARICap(dev, cap, vis);
     case ExtCapID::ats:
-        return NotImplCap();
+        return ExtATSCap(dev, cap, vis);
     case ExtCapID::sriov:
-        return NotImplCap();
+        return ExtSRIOVCap(dev, cap, vis);
     case ExtCapID::mriov:
         return NotImplCap();
     case ExtCapID::mcast:
         return NotImplCap();
     case ExtCapID::page_req_iface:
-        return NotImplCap();
+        return ExtPageReqIfaceCap(dev, cap, vis);
     case ExtCapID::amd_rsvd:
         return NotImplCap();
     case ExtCapID::res_bar:
-        return NotImplCap();
+        return ExtResizableBARCap(dev, cap, vis);
     case ExtCapID::dpa:
         return NotImplCap();
     case ExtCapID::tph_req:
-        return NotImplCap();
+        return ExtTPHRequesterCap(dev, cap, vis);
     case ExtCapID::ltr:
-        return NotImplCap();
+        return ExtLTRCap(dev, cap, vis);
     case ExtCapID::sec_pcie:
         return ExtSecondaryPCIECap(dev, cap, vis);
     case ExtCapID::pmux:
@@ -627,9 +1658,9 @@ GetExtendedCapComponents(const pci::PciDevBase *dev, const ExtCapID cap_id,
     case ExtCapID::lnr:
         return NotImplCap();
     case ExtCapID::dpc:
-        return NotImplCap();
+        return ExtDPCCap(dev, cap, vis);
     case ExtCapID::l1_pm_substates:
-        return NotImplCap();
+        return ExtL1PMSubstatesCap(dev, cap, vis);
     case ExtCapID::ptm:
         return NotImplCap();
     case ExtCapID::pcie_over_mphy:
